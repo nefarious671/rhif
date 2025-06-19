@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "RHIF Clip-On",
+  "version": "0.1",
+  "permissions": ["storage", "clipboardWrite", "activeTab", "scripting"],
+  "host_permissions": ["http://127.0.0.1:8765/*"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_popup": "popup.html" },
+  "content_scripts": [
+    {
+      "matches": ["https://chat.openai.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>RHIF Search</title>
+<link href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css" rel="stylesheet">
+</head>
+<body class="section">
+<div class="container">
+<h1 class="title">Search Results</h1>
+{% for row in rows %}
+<pre class="rsp" data-id="{{ row.id }}" data-tags="{{ row.tags }}">
+{{ row.id }} | {{ row.date }} | {{ row.role }} | {{ row.text }}
+</pre>
+{% endfor %}
+</div>
+</body>
+</html>
