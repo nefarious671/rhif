@@ -112,7 +112,7 @@ def _summarise_once(
         logger.error(
             "JSON parse failure: %s\nPrompt: %r\nResponse: %r",
             e,
-            prompt[:500],
+            user_prompt[:500],  
             raw_resp[:500],
         )
         return "", [], {}
