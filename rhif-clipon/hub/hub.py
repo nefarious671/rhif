@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from datetime import date
+import sqlite3
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, render_template
@@ -65,7 +66,10 @@ def ingest_route():
     )
     row['keywords'] = json.dumps(kw)
     row.update(meta)
-    rowid = insert_rsp(row)
+    try:
+        rowid = insert_rsp(row)
+    except sqlite3.IntegrityError:
+        return jsonify({'ok': False}), 409
     return jsonify({'ok': True, 'id': rowid})
 
 
@@ -134,10 +138,14 @@ if __name__ == '__main__':
               dimension TEXT,
               value TEXT,
               dimension_hash TEXT,
-              context_path TEXT
+              context_path TEXT,
+              UNIQUE(hash, dimension, value)
             )"""
         )
+        execute("CREATE INDEX IF NOT EXISTS rsp_domain_idx ON rsp(domain)")
+        execute("CREATE INDEX IF NOT EXISTS rsp_topic_idx ON rsp(topic)")
         execute("CREATE INDEX IF NOT EXISTS idx_keywords_json ON rsp(json_extract(keywords, '$'))")
         execute("CREATE INDEX IF NOT EXISTS idx_tags_json ON rsp(json_extract(tags, '$'))")
+        # TODO: normalise tags into rsp_tag table with insert trigger
     port = app.config['HUB_PORT']
     app.run(host='127.0.0.1', port=port)

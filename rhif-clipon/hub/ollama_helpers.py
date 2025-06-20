@@ -36,7 +36,8 @@ def summarise_and_keywords(
 
     try:
         data = json.loads(raw_resp)
-    except json.JSONDecodeError:
+    except Exception as e:
+        print(f"Warning: failed to parse ollama JSON: {e}")
         return "", [], {}
 
     summary = data.get('summary', '').strip()
