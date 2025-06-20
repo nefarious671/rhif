@@ -46,6 +46,7 @@ def insert_rsp(row: Dict[str, Any]) -> int:
     kw_hash = hashlib.sha256(kw_json.encode()).hexdigest()
     row['keywords'] = None  # legacy field stored as NULL
 
+
     # build meta pairs from hot axes if meta not provided
     meta_pairs: List[Dict[str, Any]] = []
     for axis in ['domain', 'topic', 'conversation_type', 'emotion', 'novelty']:
