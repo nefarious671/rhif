@@ -10,7 +10,7 @@
 <h1 class="title">Search Results</h1>
 {% for row in rows %}
 <pre class="rsp" data-id="{{ row.id }}" data-tags="{{ row.tags }}">
-{{ row.id }} | {{ row.date }} | {{ row.role }} | {{ row.text }}
+{{ row.id }} | {{ row.domain }} | {{ row.topic }} | {{ row.date }} | {{ row.role }} | {{ row.text }}
 </pre>
 {% endfor %}
 </div>

@@ -32,13 +32,13 @@ app.config.update(
 @app.route('/summarise', methods=['POST'])
 def summarise_route():
     data = request.get_json(force=True)
-    summary, keywords = summarise_and_keywords(
+    summary, keywords, meta = summarise_and_keywords(
         data.get('text', ''),
         app.config['OLLAMA_MODEL'],
         app.config['KEYWORD_COUNT'],
         app.config['SUMMARY_TOKENS'],
     )
-    return jsonify({'summary': summary, 'keywords': keywords})
+    return jsonify({'summary': summary, 'keywords': keywords, 'meta': meta})
 
 
 @app.route('/ingest', methods=['POST'])
@@ -56,13 +56,14 @@ def ingest_route():
         'keywords': None,
         'tokens': len(data['text'].split()),
     }
-    row['summary'], kw = summarise_and_keywords(
+    row['summary'], kw, meta = summarise_and_keywords(
         row['text'],
         app.config['OLLAMA_MODEL'],
         app.config['KEYWORD_COUNT'],
         app.config['SUMMARY_TOKENS'],
     )
     row['keywords'] = json.dumps(kw)
+    row.update(meta)
     rowid = insert_rsp(row)
     return jsonify({'ok': True, 'id': rowid})
 
@@ -72,8 +73,10 @@ def search_route():
     query = request.args.get('q', '')
     tags = request.args.get('tags', '')
     limit = int(request.args.get('limit', 10))
+    domain = request.args.get('domain')
+    topic = request.args.get('topic')
     tag_list = [t.strip() for t in tags.split(',') if t.strip()]
-    rows = search_rsps(query, tag_list, limit)
+    rows = search_rsps(query, tag_list, limit, domain, topic)
     if request.headers.get('Accept') == 'application/json':
         return jsonify(rows)
     return render_template('search.html', rows=rows)
@@ -104,6 +107,7 @@ if __name__ == '__main__':
         execute(
             """CREATE TABLE IF NOT EXISTS rsp (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
+              hash TEXT UNIQUE,
               conv_id TEXT,
               turn INTEGER,
               role TEXT,
@@ -112,11 +116,27 @@ if __name__ == '__main__':
               summary TEXT,
               keywords TEXT,
               tags TEXT,
-              tokens INTEGER
+              tokens INTEGER,
+              meta TEXT,
+              children TEXT,
+              domain TEXT,
+              topic TEXT,
+              conversation_type TEXT,
+              emotion TEXT,
+              novelty INTEGER
             )"""
         )
         execute(
             "CREATE VIRTUAL TABLE IF NOT EXISTS rsp_fts USING fts5(text, summary, keywords, content='rsp', content_rowid='id')"
+        )
+        execute(
+            """CREATE TABLE IF NOT EXISTS rsp_index (
+              hash TEXT,
+              dimension TEXT,
+              value TEXT,
+              dimension_hash TEXT,
+              context_path TEXT
+            )"""
         )
         execute("CREATE INDEX IF NOT EXISTS idx_keywords_json ON rsp(json_extract(keywords, '$'))")
         execute("CREATE INDEX IF NOT EXISTS idx_tags_json ON rsp(json_extract(tags, '$'))")
