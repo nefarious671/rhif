@@ -27,8 +27,8 @@ def flatten_meta(rsp_hash_value: str, meta: Iterable[Dict[str, Any]], context_pa
     """Yield flattened rows for the meta index."""
     path = list(context_path or [])
     for pair in meta:
-        dim = pair.get("dimension")
-        val = pair.get("value")
+        dim = pair.get("dimension") or ""
+        val = pair.get("value") or ""
         yield {
             "hash": rsp_hash_value,
             "dimension": dim,

@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import os
 from datetime import date
-from typing import List
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, render_template
