@@ -6,6 +6,7 @@ import logging
 
 import ijson
 import requests
+import time
 from tqdm import tqdm
 
 
@@ -18,12 +19,15 @@ if not logger.handlers:
 
 
 def ingest_message(hub, data):
-    """POST ``data`` to the hub, retrying on rate limits."""
+    """POST ``data`` to the hub with retries and back-off."""
+    delay = 1
     for _ in range(3):
-        res = requests.post(f'{hub}/ingest', json=data)
-        if res.status_code == 429:
-            continue
         try:
+            res = requests.post(f'{hub}/ingest', json=data)
+            if res.status_code in (429, 500, 502, 503, 504):
+                time.sleep(delay)
+                delay *= 2
+                continue
             res.raise_for_status()
             return
         except Exception as e:
@@ -33,9 +37,11 @@ def ingest_message(hub, data):
                 data.get('turn'),
                 e,
                 data.get('text', '')[:200],
-                res.text[:200],
+                getattr(res, 'text', '')[:200] if 'res' in locals() else ''
             )
-            raise
+            time.sleep(delay)
+            delay *= 2
+    raise RuntimeError('ingest failed after retries')
 
 
 def main():

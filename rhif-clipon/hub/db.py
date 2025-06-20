@@ -1,4 +1,16 @@
-"""Database helpers for storing and querying RHIF packets."""
+"""Database helpers for storing and querying RHIF packets.
+
+Schema overview
+----------------
+Tables:
+  - ``rsp``: main packet store.
+  - ``rsp_fts``: FTS5 virtual table (text, summary) linked to ``rsp``.
+  - ``rsp_index``: flattened metadata for fast filtering.
+  - ``keyword_set``/``keyword_set_fts`` and ``rsp_keyword_xref``: deduplicated
+    keyword lists with FTS search.
+
+Important indices are created on ``rsp.domain`` and ``rsp.topic``.
+"""
 
 import json
 import sqlite3
@@ -11,6 +23,69 @@ from rhif_utils import canonical_json, rsp_hash, flatten_meta, canonical_keyword
 from flask import current_app
 
 _MEM_CONN: sqlite3.Connection | None = None
+
+
+def ensure_schema() -> None:
+    """Create required tables and indices if they do not already exist."""
+    with get_db() as conn:
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS rsp (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              hash TEXT UNIQUE,
+              conv_id TEXT,
+              turn INTEGER,
+              role TEXT,
+              date TEXT,
+              text TEXT,
+              summary TEXT,
+              keywords TEXT,
+              tags TEXT,
+              tokens INTEGER,
+              meta TEXT,
+              children TEXT,
+              domain TEXT,
+              topic TEXT,
+              conversation_type TEXT,
+              emotion TEXT,
+              novelty INTEGER
+            )"""
+        )
+        conn.execute(
+            "CREATE VIRTUAL TABLE IF NOT EXISTS rsp_fts USING fts5(text, summary, keywords, content='rsp', content_rowid='id')"
+        )
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS rsp_index (
+              hash TEXT,
+              dimension TEXT,
+              value TEXT,
+              dimension_hash TEXT,
+              context_path TEXT,
+              UNIQUE(hash, dimension, value)
+            )"""
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS rsp_domain_idx ON rsp(domain)")
+        conn.execute("CREATE INDEX IF NOT EXISTS rsp_topic_idx ON rsp(topic)")
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS keyword_set(
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              kw_hash TEXT UNIQUE,
+              keywords_json TEXT
+            )"""
+        )
+        conn.execute(
+            "CREATE VIRTUAL TABLE IF NOT EXISTS keyword_set_fts USING fts5(keywords_json)"
+        )
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS rsp_keyword_xref(
+              rsp_id INT,
+              keyword_set_id INT,
+              PRIMARY KEY(rsp_id, keyword_set_id)
+            )"""
+        )
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_keyword_set_hash ON keyword_set(kw_hash)"
+        )
+        conn.commit()
 
 
 def get_db() -> sqlite3.Connection:
@@ -94,24 +169,25 @@ def insert_rsp(row: Dict[str, Any]) -> int:
             raise RuntimeError("Failed to insert RSP row: lastrowid is None")
         conn.execute(
             "INSERT INTO rsp_fts(rowid, text, summary, keywords) VALUES (?,?,?,?)",
-            (rowid, row['text'], row['summary'], row['keywords'])
+            (rowid, row['text'], row['summary'], '')
         )
         conn.execute(
             "INSERT OR IGNORE INTO rsp_keyword_xref(rsp_id, keyword_set_id) VALUES (?, ?)",
             (rowid, kw_id)
         )
         # index meta
-        for idx in flatten_meta(row['hash'], meta_pairs, json.loads(row.get('children', '[]') or '[]')):
-            if idx['dimension'] == 'word':  # rely on FTS for word search
-                continue
-            try:
-                conn.execute(
-                    "INSERT INTO rsp_index(hash, dimension, value, dimension_hash, context_path) VALUES (?,?,?,?,?)",
-                    (idx['hash'], idx['dimension'], idx['value'], idx['dimension_hash'], idx['context_path'])
-                )
-            except sqlite3.IntegrityError:
-                # duplicate index row
-                continue
+        meta_rows = [
+            (idx['hash'], idx['dimension'], idx['value'], idx['dimension_hash'], idx['context_path'])
+            for idx in flatten_meta(row['hash'], meta_pairs, json.loads(row.get('children', '[]') or '[]'))
+            if idx['dimension'] != 'word'
+        ]
+        try:
+            conn.executemany(
+                "INSERT OR IGNORE INTO rsp_index(hash,dimension,value,dimension_hash,context_path) VALUES (?,?,?,?,?)",
+                meta_rows
+            )
+        except sqlite3.IntegrityError:
+            pass
         conn.commit()
     return rowid
 
@@ -123,10 +199,12 @@ def search_rsps(query: str,
                 topic: Optional[str] = None,
                 keywords: Optional[str] = None) -> List[Dict[str, Any]]:
     """Search stored packets using FTS and keyword/axis filters."""
+    if not query.strip():
+        return []
     sql = (
         "SELECT rsp.id, rsp.conv_id, rsp.turn, rsp.role, rsp.date, rsp.text, "
-        "rsp.summary, rsp.keywords, rsp.tags, rsp.tokens, rsp.domain, rsp.topic "
-        "FROM rsp_fts JOIN rsp ON rsp_fts.rowid = rsp.id "
+        "rsp.summary, rsp.keywords, rsp.tags, rsp.tokens, rsp.domain, rsp.topic, "
+        "bm25(rsp_fts) AS rank FROM rsp_fts JOIN rsp ON rsp_fts.rowid = rsp.id "
     )
     if keywords:
         sql += (
@@ -139,16 +217,18 @@ def search_rsps(query: str,
         sql += " AND (keyword_set_fts MATCH ?)"
         params.append(keywords)
     if tags:
-        tag_clause = ' AND '.join(["json_extract(tags, '$') LIKE ?" for _ in tags])
-        sql += f" AND {tag_clause}"
-        params += [f'%{t}%' for t in tags]
+        placeholders = ' AND '.join([
+            "EXISTS (SELECT 1 FROM json_each(rsp.tags) WHERE value = ?)" for _ in tags
+        ])
+        sql += f" AND {placeholders}"
+        params.extend(tags)
     if domain:
         sql += " AND domain = ?"
         params.append(domain)
     if topic:
         sql += " AND topic = ?"
         params.append(topic)
-    sql += " ORDER BY id DESC LIMIT ?"
+    sql += " ORDER BY rank, rsp.id DESC LIMIT ?"
     params.append(limit)
     rows = execute(sql, *params)
     return [dict(r) for r in rows]
