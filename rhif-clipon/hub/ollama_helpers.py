@@ -15,7 +15,7 @@ def summarise_and_keywords(
         f"TASK A – Summarize the message below in at most {summary_tokens} words.\n"
         f"TASK B – Output exactly {kw_count} lowercase, single-word keywords, comma-separated.\n"
         "TASK C – Provide metadata fields: domain, topic, conversation_type, emotion, novelty (0 to 1).\n"
-        "Respond only in valid JSON:\n"
+        "Respond ONLY with valid JSON in this exact format:\n"
         '{ "summary": "...", "keywords": ["kw1","kw2"], "domain": "...", "topic": "...", '
         '"conversation_type": "...", "emotion": "...", "novelty": 1 }\n'
         'MESSAGE:\n"""' + text + '"""'
