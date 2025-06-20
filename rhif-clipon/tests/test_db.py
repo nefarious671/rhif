@@ -31,7 +31,16 @@ with app.app_context():
         novelty INTEGER
     )""")
     execute("CREATE VIRTUAL TABLE rsp_fts USING fts5(text, summary, keywords, content='rsp', content_rowid='id')")
-    execute("CREATE TABLE rsp_index(hash TEXT, dimension TEXT, value TEXT, dimension_hash TEXT, context_path TEXT)")
+    execute("""CREATE TABLE rsp_index(
+        hash TEXT,
+        dimension TEXT,
+        value TEXT,
+        dimension_hash TEXT,
+        context_path TEXT,
+        UNIQUE(hash, dimension, value)
+    )""")
+    execute("CREATE INDEX rsp_domain_idx ON rsp(domain)")
+    execute("CREATE INDEX rsp_topic_idx ON rsp(topic)")
 
 def test_insert_and_search():
     with app.app_context():

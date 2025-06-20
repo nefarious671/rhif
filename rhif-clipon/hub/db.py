@@ -67,10 +67,16 @@ def insert_rsp(row: Dict[str, Any]) -> int:
         )
         # index meta
         for idx in flatten_meta(row['hash'], meta_pairs, json.loads(row.get('children', '[]') or '[]')):
-            conn.execute(
-                "INSERT INTO rsp_index(hash, dimension, value, dimension_hash, context_path) VALUES (?,?,?,?,?)",
-                (idx['hash'], idx['dimension'], idx['value'], idx['dimension_hash'], idx['context_path'])
-            )
+            if idx['dimension'] == 'word':  # rely on FTS for word search
+                continue
+            try:
+                conn.execute(
+                    "INSERT INTO rsp_index(hash, dimension, value, dimension_hash, context_path) VALUES (?,?,?,?,?)",
+                    (idx['hash'], idx['dimension'], idx['value'], idx['dimension_hash'], idx['context_path'])
+                )
+            except sqlite3.IntegrityError:
+                # duplicate index row
+                continue
         conn.commit()
     return rowid
 

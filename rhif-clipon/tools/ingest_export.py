@@ -65,7 +65,10 @@ def main():
                         'text': part,
                         'tags': ['#legacy'],
                     }
-                    ingest_message(args.hub, data)
+                    try:
+                        ingest_message(args.hub, data)
+                    except Exception as e:
+                        print(f"Failed to ingest turn {turn} of {conv_id}: {e}")
                     turn += 1
                     total += 1
                     if turn > args.max_per_conv:
