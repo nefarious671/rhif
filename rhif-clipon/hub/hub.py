@@ -43,6 +43,8 @@ def summarise_route():
 @app.route('/ingest', methods=['POST'])
 def ingest_route():
     data = request.get_json(force=True)
+    if not data.get('text', '').strip():
+        return jsonify({'ok': False, 'error': 'empty text'}), 400
     tags = data.get('tags', ['#legacy'])
     row = {
         'conv_id': data['conv_id'],

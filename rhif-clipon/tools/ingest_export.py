@@ -39,18 +39,29 @@ def main():
                 message = msg_node.get('message')
                 if not message:
                     continue
+
+                role = message.get('author', {}).get('role', '') or 'assistant'
+                if role in ('system', 'tool'):
+                    continue
+
                 content = message.get('content', {})
                 if content.get('content_type') != 'text':
                     continue
-                parts = content.get('parts', [])
+
+                raw_parts = content.get('parts', [])
+                parts = [p for p in raw_parts if p and p.strip()]
+                if not parts:
+                    continue
+
                 for part in parts:
                     if len(part) > 8000:
                         continue
                     data = {
                         'conv_id': conv_id,
                         'turn': turn,
-                        'role': message.get('author', {}).get('role', 'assistant'),
-                        'date': str(message.get('create_time', ''))[:10],
+                        'role': role,
+                        'date': (str(message.get('create_time'))[:10]
+                                 if message.get('create_time') else ''),
                         'text': part,
                         'tags': ['#legacy'],
                     }
