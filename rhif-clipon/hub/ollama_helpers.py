@@ -3,7 +3,7 @@
 import json
 import os
 import logging
-import re
+import regex as re
 from typing import Dict, List, Tuple
 
 import ollama
@@ -25,35 +25,52 @@ if not logger.handlers:
 
 
 _JSON_DECODER = json.JSONDecoder()
+_JSON_REGEX = re.compile(r'\{(?:[^{}]|(?R))*\}', re.S)  # recursive brace matcher
 
 
 def _extract_json(text: str) -> Dict:
-    """Return first JSON object found in *text*."""
+    """Try hard to return a JSON object from *text*."""
 
-    cleaned = text.strip()
+    import ast
 
-    # remove simple code fences
-    if cleaned.startswith("```"):
-        cleaned = cleaned.strip('`')
-        if cleaned.lower().startswith("json"):
-            cleaned = cleaned[4:].lstrip()
+    def _clean_fences(t: str) -> str:
+        t = t.strip()
+        if t.startswith("```"):
+            t = t.strip("` \n")
+            if t.lower().startswith("json"):
+                t = t[4:].lstrip()
+        return t
 
-    # try direct decode
+    cleaned = _clean_fences(text)
+
+    # 1) direct decode
     try:
-        obj, _ = _JSON_DECODER.raw_decode(cleaned)
-        return obj
+        return json.loads(cleaned)
     except Exception:
         pass
 
-    # fallback: extract first {...} block
-    match = re.search(r"\{.*\}", cleaned, re.S)
-    if match:
+    # 2) find first {...}
+    m = _JSON_REGEX.search(cleaned)
+    if m:
         try:
-            return json.loads(match.group(0))
+            return json.loads(m.group(0))
         except Exception:
-            pass
+            cleaned = m.group(0)
 
-    raise ValueError("No valid JSON object found")
+    # 3) best-effort fixes
+    fixes = (
+        cleaned
+        .replace("“", '"').replace("”", '"')
+        .replace("’", "'")
+        .replace("\n", " ")
+    )
+    try:
+        return json.loads(fixes)
+    except Exception:
+        try:
+            return ast.literal_eval(fixes)
+        except Exception:
+            raise ValueError("No valid JSON object found")
 
 
 def _summarise_once(
@@ -64,7 +81,8 @@ def _summarise_once(
 ) -> Tuple[str, List[str], Dict[str, str]]:
     """Call Ollama once and return summary, keywords and meta data."""
 
-    prompt = (
+    system_prompt = "You are an API that must return JSON only."
+    user_prompt = (
         f"Summarize the message below in <= {summary_tokens} words.\n"
         f"Return exactly {kw_count} lowercase single-word keywords.\n"
         "Provide: domain, topic, conversation_type, emotion, novelty (0-1).\n"
@@ -76,8 +94,9 @@ def _summarise_once(
 
     response = ollama.generate(
         model=model,
-        prompt=prompt,
-        options={"temperature": 0.3},
+        prompt=user_prompt,
+        system=system_prompt,
+        options={"temperature": 0, "num_predict": 0, "stop": ["}```", "```"]},
         stream=False
     )
 
