@@ -79,7 +79,7 @@ def ingest_route():
     try:
         rowid = insert_rsp(row)
     except sqlite3.IntegrityError:
-        return jsonify({'ok': False}), 409
+        return jsonify({'ok': False, 'dup': True}), 409
     return jsonify({'ok': True, 'id': rowid})
 
 
@@ -116,70 +116,8 @@ def health_route():
 
 
 if __name__ == '__main__':
-    from pathlib import Path
-    db_path = Path(app.config['DB_PATH'])
+    from db import ensure_schema
     with app.app_context():
-        # Always try to create tables (IF NOT EXISTS is safe)
-        execute(
-            """CREATE TABLE IF NOT EXISTS rsp (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              hash TEXT UNIQUE,
-              conv_id TEXT,
-              turn INTEGER,
-              role TEXT,
-              date TEXT,
-              text TEXT,
-              summary TEXT,
-              keywords TEXT,
-              tags TEXT,
-              tokens INTEGER,
-              meta TEXT,
-              children TEXT,
-              domain TEXT,
-              topic TEXT,
-              conversation_type TEXT,
-              emotion TEXT,
-              novelty INTEGER
-            )"""
-        )
-        execute(
-            "CREATE VIRTUAL TABLE IF NOT EXISTS rsp_fts USING fts5(text, summary, keywords, content='rsp', content_rowid='id')"
-        )
-        execute(
-            """CREATE TABLE IF NOT EXISTS rsp_index (
-              hash TEXT,
-              dimension TEXT,
-              value TEXT,
-              dimension_hash TEXT,
-              context_path TEXT,
-              UNIQUE(hash, dimension, value)
-            )"""
-        )
-        execute("CREATE INDEX IF NOT EXISTS rsp_domain_idx ON rsp(domain)")
-        execute("CREATE INDEX IF NOT EXISTS rsp_topic_idx ON rsp(topic)")
-        execute("CREATE INDEX IF NOT EXISTS idx_keywords_json ON rsp(json_extract(keywords, '$'))")
-        execute("CREATE INDEX IF NOT EXISTS idx_tags_json ON rsp(json_extract(tags, '$'))")
-        # Phase-3 keyword_set tables
-        execute(
-            """CREATE TABLE IF NOT EXISTS keyword_set(
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              kw_hash TEXT UNIQUE,
-              keywords_json TEXT
-            )"""
-        )
-        execute(
-            "CREATE VIRTUAL TABLE IF NOT EXISTS keyword_set_fts USING fts5(keywords_json)"
-        )
-        execute(
-            """CREATE TABLE IF NOT EXISTS rsp_keyword_xref(
-              rsp_id INT,
-              keyword_set_id INT,
-              PRIMARY KEY(rsp_id, keyword_set_id)
-            )"""
-        )
-        execute(
-            "CREATE UNIQUE INDEX IF NOT EXISTS idx_keyword_set_hash ON keyword_set(kw_hash)"
-        )
-        # TODO: normalise tags into rsp_tag table with insert trigger
+        ensure_schema()
     port = app.config['HUB_PORT']
     app.run(host='127.0.0.1', port=port)
