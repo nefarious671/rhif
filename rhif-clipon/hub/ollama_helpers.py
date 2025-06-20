@@ -16,8 +16,20 @@ def summarise_and_keywords(text: str, model: str, kw_count: int, summary_tokens:
         'MESSAGE:\n"""' + text + '"""'
     )
     
-    response = ollama.generate(model=model, prompt=prompt, temperature=0.3, stream=False) # type: ignore
-    data = json.loads(response['response']) if isinstance(response, dict) else json.loads(response)
+    response = ollama.generate(
+        model=model,
+        prompt=prompt,
+        options={"temperature": 0.3},
+        stream=False
+    )
+    # If response is a GenerateResponse object, get the .response attribute
+    if hasattr(response, "response"):
+        data = json.loads(response.response)
+    elif isinstance(response, dict):
+        data = json.loads(response['response'])
+    else:
+        # Assume response is a GenerateResponse object and extract its 'response' attribute
+        data = json.loads(getattr(response, "response", str(response)))
     summary = data.get('summary', '')
     keywords = data.get('keywords', [])
     if isinstance(keywords, str):
