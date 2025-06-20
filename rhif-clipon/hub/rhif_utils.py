@@ -1,3 +1,5 @@
+"""Utility helpers for hashing and indexing response packets."""
+
 import hashlib
 import json
 from typing import Iterable, Dict, Any, Generator

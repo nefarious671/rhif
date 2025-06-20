@@ -1,3 +1,5 @@
+"""Import legacy ChatGPT archives into the RHIF hub."""
+
 import argparse
 from pathlib import Path
 
@@ -7,6 +9,7 @@ from tqdm import tqdm
 
 
 def ingest_message(hub, data):
+    """POST ``data`` to the hub, retrying on rate limits."""
     for _ in range(3):
         res = requests.post(f'{hub}/ingest', json=data)
         if res.status_code == 429:
@@ -16,6 +19,7 @@ def ingest_message(hub, data):
 
 
 def main():
+    """CLI entry point for importing a ChatGPT archive directory."""
     ap = argparse.ArgumentParser()
     ap.add_argument('--export-dir', required=True, help="Directory containing conversations.json")
     ap.add_argument('--hub', default='http://127.0.0.1:8765', help="URL of the ingestion hub")

@@ -33,3 +33,9 @@ Load `extension/` as an unpacked extension in Chrome/Edge.
 ```bash
 python tools/ingest_export.py --export-dir ~/Downloads/chatgpt_export/
 ```
+
+Run tests with:
+
+```bash
+pytest -q
+```

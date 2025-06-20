@@ -1,3 +1,11 @@
+"""Flask application serving the RHIF ingestion hub.
+
+This module exposes a small REST API used by the browser extension and
+command-line tools. Endpoints provide summarisation of text via an Ollama
+model, ingestion of conversation turns, lightweight search and a helper for
+saving code blocks from assistant responses.
+"""
+
 from __future__ import annotations
 
 import json
@@ -31,6 +39,7 @@ app.config.update(
 
 @app.route('/summarise', methods=['POST'])
 def summarise_route():
+    """Return a short summary and keywords for the provided text."""
     data = request.get_json(force=True)
     summary, keywords, meta = summarise_and_keywords(
         data.get('text', ''),
@@ -43,6 +52,7 @@ def summarise_route():
 
 @app.route('/ingest', methods=['POST'])
 def ingest_route():
+    """Ingest a conversation turn and store its summary and metadata."""
     data = request.get_json(force=True)
     if not data.get('text', '').strip():
         return jsonify({'ok': False, 'error': 'empty text'}), 400
@@ -75,6 +85,7 @@ def ingest_route():
 
 @app.route('/search', methods=['GET'])
 def search_route():
+    """Search the archive using FTS and optional filters."""
     query = request.args.get('q', '')
     tags = request.args.get('tags', '')
     limit = int(request.args.get('limit', 10))
@@ -89,6 +100,7 @@ def search_route():
 
 @app.route('/savecode', methods=['POST'])
 def savecode_route():
+    """Persist code blocks from markdown into the workspace directory."""
     data = request.get_json(force=True)
     code_md = data.get('code_markdown', '')
     base = data.get('base_filename')
@@ -99,6 +111,7 @@ def savecode_route():
 
 @app.route('/health')
 def health_route():
+    """Simple liveness probe used by tests and the extension."""
     return jsonify({'status': 'alive'})
 
 

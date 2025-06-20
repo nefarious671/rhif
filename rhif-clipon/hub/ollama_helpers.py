@@ -1,3 +1,5 @@
+"""Integration helpers for summarisation using the Ollama API."""
+
 import json
 import os
 from typing import Dict, List, Tuple
@@ -14,6 +16,8 @@ def _summarise_once(
     kw_count: int,
     summary_tokens: int,
 ) -> Tuple[str, List[str], Dict[str, str]]:
+    """Call Ollama once and return summary, keywords and meta data."""
+
     prompt = (
         "You are a summarization assistant.\n"
         f"TASK A – Summarize the message below in at most {summary_tokens} words.\n"
@@ -68,6 +72,7 @@ def summarise_and_keywords(
     kw_count: int,
     summary_tokens: int,
 ) -> Tuple[str, List[str], Dict[str, str]]:
+    """Summarise ``text`` using Ollama, splitting into chunks if needed."""
     if len(text) <= MAX_PROMPT_CHARS:
         return _summarise_once(text, model, kw_count, summary_tokens)
 
