@@ -98,46 +98,46 @@ def health_route():
 
 if __name__ == '__main__':
     from pathlib import Path
-    # ensure db exists
     db_path = Path(app.config['DB_PATH'])
     if not db_path.exists():
         with db_path.open('w'):
             pass
-        execute(
-            """CREATE TABLE IF NOT EXISTS rsp (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              hash TEXT UNIQUE,
-              conv_id TEXT,
-              turn INTEGER,
-              role TEXT,
-              date TEXT,
-              text TEXT,
-              summary TEXT,
-              keywords TEXT,
-              tags TEXT,
-              tokens INTEGER,
-              meta TEXT,
-              children TEXT,
-              domain TEXT,
-              topic TEXT,
-              conversation_type TEXT,
-              emotion TEXT,
-              novelty INTEGER
-            )"""
-        )
-        execute(
-            "CREATE VIRTUAL TABLE IF NOT EXISTS rsp_fts USING fts5(text, summary, keywords, content='rsp', content_rowid='id')"
-        )
-        execute(
-            """CREATE TABLE IF NOT EXISTS rsp_index (
-              hash TEXT,
-              dimension TEXT,
-              value TEXT,
-              dimension_hash TEXT,
-              context_path TEXT
-            )"""
-        )
-        execute("CREATE INDEX IF NOT EXISTS idx_keywords_json ON rsp(json_extract(keywords, '$'))")
-        execute("CREATE INDEX IF NOT EXISTS idx_tags_json ON rsp(json_extract(tags, '$'))")
+        with app.app_context():
+            execute(
+                """CREATE TABLE IF NOT EXISTS rsp (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  hash TEXT UNIQUE,
+                  conv_id TEXT,
+                  turn INTEGER,
+                  role TEXT,
+                  date TEXT,
+                  text TEXT,
+                  summary TEXT,
+                  keywords TEXT,
+                  tags TEXT,
+                  tokens INTEGER,
+                  meta TEXT,
+                  children TEXT,
+                  domain TEXT,
+                  topic TEXT,
+                  conversation_type TEXT,
+                  emotion TEXT,
+                  novelty INTEGER
+                )"""
+            )
+            execute(
+                "CREATE VIRTUAL TABLE IF NOT EXISTS rsp_fts USING fts5(text, summary, keywords, content='rsp', content_rowid='id')"
+            )
+            execute(
+                """CREATE TABLE IF NOT EXISTS rsp_index (
+                  hash TEXT,
+                  dimension TEXT,
+                  value TEXT,
+                  dimension_hash TEXT,
+                  context_path TEXT
+                )"""
+            )
+            execute("CREATE INDEX IF NOT EXISTS idx_keywords_json ON rsp(json_extract(keywords, '$'))")
+            execute("CREATE INDEX IF NOT EXISTS idx_tags_json ON rsp(json_extract(tags, '$'))")
     port = app.config['HUB_PORT']
     app.run(host='127.0.0.1', port=port)
