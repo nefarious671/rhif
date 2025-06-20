@@ -14,8 +14,12 @@ MAX_PROMPT_CHARS = int(os.getenv("OLLAMA_MAX_PROMPT", "32000"))
 # error logger for failed ollama JSON responses
 logger = logging.getLogger("ollama")
 if not logger.handlers:
-    handler = logging.FileHandler("ollama_errors.log")
-    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s: %(message)s"))
+    handler = logging.FileHandler(
+        "ollama_errors.log", encoding="utf-8", errors="replace"
+    )
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s %(levelname)s: %(message)s")
+    )
     logger.addHandler(handler)
     logger.setLevel(logging.ERROR)
 
