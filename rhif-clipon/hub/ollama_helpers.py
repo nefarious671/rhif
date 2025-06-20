@@ -2,12 +2,21 @@
 
 import json
 import os
+import logging
 from typing import Dict, List, Tuple
 
 import ollama
 
 
 MAX_PROMPT_CHARS = int(os.getenv("OLLAMA_MAX_PROMPT", "32000"))
+
+# error logger for failed ollama JSON responses
+logger = logging.getLogger("ollama")
+if not logger.handlers:
+    handler = logging.FileHandler("ollama_errors.log")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s: %(message)s"))
+    logger.addHandler(handler)
+    logger.setLevel(logging.ERROR)
 
 
 def _summarise_once(
@@ -19,13 +28,12 @@ def _summarise_once(
     """Call Ollama once and return summary, keywords and meta data."""
 
     prompt = (
-        "You are a summarization assistant.\n"
-        f"TASK A – Summarize the message below in at most {summary_tokens} words.\n"
-        f"TASK B – Output exactly {kw_count} lowercase, single-word keywords, comma-separated.\n"
-        "TASK C – Provide metadata fields: domain, topic, conversation_type, emotion, novelty (0 to 1).\n"
-        "Respond ONLY with valid JSON in this exact format:\n"
-        '{ "summary": "...", "keywords": ["kw1","kw2"], "domain": "...", "topic": "...", '
-        '"conversation_type": "...", "emotion": "...", "novelty": 1 }\n'
+        f"Summarize the message below in <= {summary_tokens} words.\n"
+        f"Return exactly {kw_count} lowercase single-word keywords.\n"
+        "Provide: domain, topic, conversation_type, emotion, novelty (0-1).\n"
+        "Respond ONLY with JSON in this format:\n"
+        '{"summary":"...","keywords":["kw1","kw2"],"domain":"...","topic":"...",'
+        '"conversation_type":"...","emotion":"...","novelty":1}\n'
         'MESSAGE:\n"""' + text + '"""'
     )
 
@@ -45,7 +53,12 @@ def _summarise_once(
     try:
         data = json.loads(raw_resp)
     except Exception as e:
-        print(f"Warning: failed to parse ollama JSON: {e}")
+        logger.error(
+            "JSON parse failure: %s\nPrompt: %r\nResponse: %r",
+            e,
+            prompt[:500],
+            raw_resp[:500],
+        )
         return "", [], {}
 
     summary = data.get('summary', '').strip()
