@@ -74,7 +74,9 @@ def search_rsps(query: str,
                 topic: Optional[str] = None) -> List[Dict[str, Any]]:
     """Search RSPs using FTS with optional tag and axis filters."""
     sql = (
-        "SELECT id, conv_id, turn, role, date, text, summary, keywords, tags, tokens, domain, topic "
+        "SELECT rsp.id, rsp.conv_id, rsp.turn, rsp.role, rsp.date, "
+        "rsp.text, rsp.summary, rsp.keywords, rsp.tags, rsp.tokens, "
+        "rsp.domain, rsp.topic "   
         "FROM rsp_fts JOIN rsp ON rsp_fts.rowid = rsp.id "
         "WHERE rsp_fts MATCH ?"
     )

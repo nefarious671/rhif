@@ -6,7 +6,10 @@ from flask import Flask
 
 
 app = Flask(__name__)
-app.config['DB_PATH'] = ':memory:'
+app.config['DB_PATH'] = '/tmp/test.sqlite'
+db_file = Path(app.config['DB_PATH'])
+if db_file.exists():
+    db_file.unlink()
 
 
 with app.app_context():
