@@ -95,10 +95,13 @@ def _summarise_once(
     response = ollama.generate(
         model=model,
         prompt=user_prompt,
-        system=system_prompt,
-        options={"temperature": 0, "num_predict": 0, "stop": ["}```", "```"]},
+        system=system_prompt,  
+        # ➊ keep temperature 0 for deterministic output
+        # ➋ **remove** num_predict so the model can actually emit JSON
+        options={"temperature": 0, "stop": ["}```", "```"]},
         stream=False
     )
+
 
     raw_resp = response.response if hasattr(response, "response") else response
     if isinstance(raw_resp, dict):
