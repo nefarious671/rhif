@@ -95,10 +95,11 @@ def _summarise_once(
     response = ollama.generate(
         model=model,
         prompt=user_prompt,
-        system=system_prompt,  
+        system=system_prompt,
         # ➊ keep temperature 0 for deterministic output
-        # ➋ **remove** num_predict so the model can actually emit JSON
-        options={"temperature": 0, "stop": ["}```", "```"]},
+        # ➋ use Ollama's JSON mode to avoid extra text
+        format="json",
+        options={"temperature": 0},
         stream=False
     )
 
