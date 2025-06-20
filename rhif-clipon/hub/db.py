@@ -44,7 +44,10 @@ def insert_rsp(row: Dict[str, Any]) -> int:
     row['hash'] = row.get('hash') or rsp_hash(row.get('text', ''), meta_pairs, json.loads(row.get('children', '[]') or '[]'))
 
     placeholders = ','.join('?' for _ in base_fields)
-    sql = f"INSERT INTO rsp ({','.join(base_fields)}) VALUES ({placeholders})"
+    sql = f"""
+    INSERT OR IGNORE INTO rsp ({', '.join(base_fields)})
+    VALUES ({', '.join(['?'] * len(base_fields))})
+    """
     with get_db() as conn:
         cur = conn.execute(sql, [row[k] for k in base_fields])
         rowid = cur.lastrowid

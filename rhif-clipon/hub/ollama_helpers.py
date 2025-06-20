@@ -31,13 +31,12 @@ def summarise_and_keywords(
     raw_resp = response.response if hasattr(response, "response") else response
     if isinstance(raw_resp, dict):
         raw_resp = raw_resp.get('response', '')
+    if not isinstance(raw_resp, str):
+        raw_resp = str(raw_resp)
 
     try:
-        if not isinstance(raw_resp, str):
-            raw_resp = str(raw_resp)
         data = json.loads(raw_resp)
     except json.JSONDecodeError:
-        print("JSON decode error on response:", raw_resp)
         return "", [], {}
 
     summary = data.get('summary', '').strip()
