@@ -48,6 +48,8 @@ def insert_rsp(row: Dict[str, Any]) -> int:
     with get_db() as conn:
         cur = conn.execute(sql, [row[k] for k in base_fields])
         rowid = cur.lastrowid
+        if rowid is None:
+            raise RuntimeError("Failed to insert RSP row: lastrowid is None")
         conn.execute(
             "INSERT INTO rsp_fts(rowid, text, summary, keywords) VALUES (?,?,?,?)",
             (rowid, row['text'], row['summary'], row['keywords'])

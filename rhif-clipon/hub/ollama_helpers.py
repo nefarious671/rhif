@@ -1,44 +1,58 @@
-from __future__ import annotations
-
 import json
 from typing import Dict, List, Tuple
 
 import ollama
 
 
-def summarise_and_keywords(text: str, model: str, kw_count: int, summary_tokens: int) -> Tuple[str, List[str], Dict[str, str]]:
+def summarise_and_keywords(
+    text: str,
+    model: str,
+    kw_count: int,
+    summary_tokens: int
+) -> Tuple[str, List[str], Dict[str, str]]:
     prompt = (
         "You are a summarization assistant.\n"
-        f"TASK A \u2013 Summarise the message below in \u2264{summary_tokens} words.\n"
-        f"TASK B \u2013 Output exactly {kw_count} lowercase single-word keywords, comma-separated.\n"
-        'Respond *only* in JSON:\n'
-        '{ "summary": "...", "keywords": ["kw1","kw2",...], "domain": "", "topic": "", "conversation_type": "", "emotion": "", "novelty": 1 }\n'
+        f"TASK A – Summarize the message below in at most {summary_tokens} words.\n"
+        f"TASK B – Output exactly {kw_count} lowercase, single-word keywords, comma-separated.\n"
+        "TASK C – Provide metadata fields: domain, topic, conversation_type, emotion, novelty (0 to 1).\n"
+        "Respond only in valid JSON:\n"
+        '{ "summary": "...", "keywords": ["kw1","kw2"], "domain": "...", "topic": "...", '
+        '"conversation_type": "...", "emotion": "...", "novelty": 1 }\n'
         'MESSAGE:\n"""' + text + '"""'
     )
-    
+
     response = ollama.generate(
         model=model,
         prompt=prompt,
         options={"temperature": 0.3},
         stream=False
     )
-    # If response is a GenerateResponse object, get the .response attribute
-    if hasattr(response, "response"):
-        data = json.loads(response.response)
-    elif isinstance(response, dict):
-        data = json.loads(response['response'])
-    else:
-        # Assume response is a GenerateResponse object and extract its 'response' attribute
-        data = json.loads(getattr(response, "response", str(response)))
-    summary = data.get('summary', '')
+
+    raw_resp = response.response if hasattr(response, "response") else response
+    if isinstance(raw_resp, dict):
+        raw_resp = raw_resp.get('response', '')
+
+    try:
+        if not isinstance(raw_resp, str):
+            raw_resp = str(raw_resp)
+        data = json.loads(raw_resp)
+    except json.JSONDecodeError:
+        print("JSON decode error on response:", raw_resp)
+        return "", [], {}
+
+    summary = data.get('summary', '').strip()
     keywords = data.get('keywords', [])
     if isinstance(keywords, str):
-        keywords = [k.strip() for k in keywords.split(',') if k.strip()]
+        keywords = [k.strip().lower() for k in keywords.split(',') if k.strip()]
+    else:
+        keywords = [k.lower() for k in keywords if isinstance(k, str)]
+
     meta = {
-        'domain': data.get('domain', ''),
-        'topic': data.get('topic', ''),
-        'conversation_type': data.get('conversation_type', ''),
-        'emotion': data.get('emotion', ''),
-        'novelty': data.get('novelty', 0)
+        'domain': data.get('domain', '').strip().lower(),
+        'topic': data.get('topic', '').strip().lower(),
+        'conversation_type': data.get('conversation_type', '').strip().lower(),
+        'emotion': data.get('emotion', '').strip().lower(),
+        'novelty': float(data.get('novelty', 0))
     }
+
     return summary, keywords, meta
