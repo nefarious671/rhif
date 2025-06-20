@@ -2,10 +2,19 @@
 
 import argparse
 from pathlib import Path
+import logging
 
 import ijson
 import requests
 from tqdm import tqdm
+
+
+logger = logging.getLogger("ingest_export")
+if not logger.handlers:
+    handler = logging.FileHandler("ingest_export_errors.log")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s: %(message)s"))
+    logger.addHandler(handler)
+    logger.setLevel(logging.ERROR)
 
 
 def ingest_message(hub, data):
@@ -14,8 +23,19 @@ def ingest_message(hub, data):
         res = requests.post(f'{hub}/ingest', json=data)
         if res.status_code == 429:
             continue
-        res.raise_for_status()
-        return
+        try:
+            res.raise_for_status()
+            return
+        except Exception as e:
+            logger.error(
+                "Failed ingest for conv %s turn %s: %s\nPayload: %r\nResponse: %s",
+                data.get('conv_id'),
+                data.get('turn'),
+                e,
+                data.get('text', '')[:200],
+                res.text[:200],
+            )
+            raise
 
 
 def main():
@@ -72,7 +92,12 @@ def main():
                     try:
                         ingest_message(args.hub, data)
                     except Exception as e:
-                        print(f"Failed to ingest turn {turn} of {conv_id}: {e}")
+                        logger.error(
+                            "Exception ingesting turn %s of %s: %s",
+                            turn,
+                            conv_id,
+                            e,
+                        )
                     turn += 1
                     total += 1
                     if turn > args.max_per_conv:
