@@ -1,14 +1,18 @@
 import json
+import os
 from typing import Dict, List, Tuple
 
 import ollama
 
 
-def summarise_and_keywords(
+MAX_PROMPT_CHARS = int(os.getenv("OLLAMA_MAX_PROMPT", "32000"))
+
+
+def _summarise_once(
     text: str,
     model: str,
     kw_count: int,
-    summary_tokens: int
+    summary_tokens: int,
 ) -> Tuple[str, List[str], Dict[str, str]]:
     prompt = (
         "You are a summarization assistant.\n"
@@ -56,3 +60,21 @@ def summarise_and_keywords(
     }
 
     return summary, keywords, meta
+
+
+def summarise_and_keywords(
+    text: str,
+    model: str,
+    kw_count: int,
+    summary_tokens: int,
+) -> Tuple[str, List[str], Dict[str, str]]:
+    if len(text) <= MAX_PROMPT_CHARS:
+        return _summarise_once(text, model, kw_count, summary_tokens)
+
+    chunk_size = MAX_PROMPT_CHARS - 1000
+    chunks = [text[i : i + chunk_size] for i in range(0, len(text), chunk_size)]
+    partial_summaries = [
+        _summarise_once(c, model, kw_count, summary_tokens)[0] for c in chunks
+    ]
+    combined = "\n".join(partial_summaries)
+    return _summarise_once(combined, model, kw_count, summary_tokens)
