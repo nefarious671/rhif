@@ -71,7 +71,7 @@ def search_rsps(query: str,
     sql = (
         "SELECT rsp.id, rsp.conv_id, rsp.turn, rsp.role, rsp.date, "
         "rsp.text, rsp.summary, rsp.keywords, rsp.tags, rsp.tokens, "
-        "rsp.domain, rsp.topic "
+        "rsp.domain, rsp.topic "   
         "FROM rsp_fts JOIN rsp ON rsp_fts.rowid = rsp.id "
         "WHERE rsp_fts MATCH ?"
     )
