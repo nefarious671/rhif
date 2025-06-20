@@ -1,3 +1,5 @@
+"""Database helpers for storing and querying RHIF packets."""
+
 import json
 import sqlite3
 import hashlib
@@ -12,6 +14,7 @@ _MEM_CONN: sqlite3.Connection | None = None
 
 
 def get_db() -> sqlite3.Connection:
+    """Return a connection to the configured SQLite database."""
     db_path = Path(current_app.config.get('DB_PATH', './rhif.sqlite'))
     if str(db_path) == ':memory:':
         global _MEM_CONN
@@ -25,6 +28,7 @@ def get_db() -> sqlite3.Connection:
 
 
 def execute(sql: str, *params) -> List[sqlite3.Row]:
+    """Execute an SQL statement and return all fetched rows."""
     with get_db() as conn:
         cur = conn.execute(sql, params)
         conn.commit()
@@ -32,7 +36,7 @@ def execute(sql: str, *params) -> List[sqlite3.Row]:
 
 
 def insert_rsp(row: Dict[str, Any]) -> int:
-    """Insert an RSP row and its meta index."""
+    """Insert a response packet and create all related index entries."""
     base_fields = [
         'conv_id', 'turn', 'role', 'date', 'text',
         'summary', 'keywords', 'tags', 'tokens',
@@ -118,7 +122,7 @@ def search_rsps(query: str,
                 domain: Optional[str] = None,
                 topic: Optional[str] = None,
                 keywords: Optional[str] = None) -> List[Dict[str, Any]]:
-    """Search RSPs using FTS with optional tag, keyword and axis filters."""
+    """Search stored packets using FTS and keyword/axis filters."""
     sql = (
         "SELECT rsp.id, rsp.conv_id, rsp.turn, rsp.role, rsp.date, rsp.text, "
         "rsp.summary, rsp.keywords, rsp.tags, rsp.tokens, rsp.domain, rsp.topic "
