@@ -3,6 +3,7 @@
 import json
 import os
 import logging
+import re
 from typing import Dict, List, Tuple
 
 import ollama
@@ -17,6 +18,38 @@ if not logger.handlers:
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s: %(message)s"))
     logger.addHandler(handler)
     logger.setLevel(logging.ERROR)
+
+
+_JSON_DECODER = json.JSONDecoder()
+
+
+def _extract_json(text: str) -> Dict:
+    """Return first JSON object found in *text*."""
+
+    cleaned = text.strip()
+
+    # remove simple code fences
+    if cleaned.startswith("```"):
+        cleaned = cleaned.strip('`')
+        if cleaned.lower().startswith("json"):
+            cleaned = cleaned[4:].lstrip()
+
+    # try direct decode
+    try:
+        obj, _ = _JSON_DECODER.raw_decode(cleaned)
+        return obj
+    except Exception:
+        pass
+
+    # fallback: extract first {...} block
+    match = re.search(r"\{.*\}", cleaned, re.S)
+    if match:
+        try:
+            return json.loads(match.group(0))
+        except Exception:
+            pass
+
+    raise ValueError("No valid JSON object found")
 
 
 def _summarise_once(
@@ -51,7 +84,7 @@ def _summarise_once(
         raw_resp = str(raw_resp)
 
     try:
-        data = json.loads(raw_resp)
+        data = _extract_json(raw_resp)
     except Exception as e:
         logger.error(
             "JSON parse failure: %s\nPrompt: %r\nResponse: %r",
