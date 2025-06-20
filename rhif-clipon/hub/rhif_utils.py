@@ -36,3 +36,8 @@ def flatten_meta(rsp_hash_value: str, meta: Iterable[Dict[str, Any]], context_pa
             "dimension_hash": dimension_hash(dim, val),
             "context_path": json.dumps(path),
         }
+
+def canonical_keyword_list(keywords: Iterable[str]) -> list[str]:
+    """Return canonicalised keyword list: lowercase, unique and sorted."""
+    cleaned = {str(k).strip().lower() for k in keywords if str(k).strip()}
+    return sorted(cleaned)

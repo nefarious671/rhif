@@ -1,9 +1,10 @@
 import json
 import sqlite3
+import hashlib
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
-from rhif_utils import canonical_json, rsp_hash, flatten_meta
+from rhif_utils import canonical_json, rsp_hash, flatten_meta, canonical_keyword_list
 
 from flask import current_app
 
@@ -40,6 +41,11 @@ def insert_rsp(row: Dict[str, Any]) -> int:
     ]
     row = {k: row.get(k) for k in base_fields}
 
+    kw_list = canonical_keyword_list(json.loads(row.get('keywords') or '[]'))
+    kw_json = canonical_json(kw_list)
+    kw_hash = hashlib.sha256(kw_json.encode()).hexdigest()
+    row['keywords'] = ''  # legacy field left blank
+
     # build meta pairs from hot axes if meta not provided
     meta_pairs: List[Dict[str, Any]] = []
     for axis in ['domain', 'topic', 'conversation_type', 'emotion', 'novelty']:
@@ -57,6 +63,27 @@ def insert_rsp(row: Dict[str, Any]) -> int:
     VALUES ({', '.join(['?'] * len(base_fields))})
     """
     with get_db() as conn:
+        # keyword set handling
+        cur = conn.execute("SELECT id FROM keyword_set WHERE kw_hash=?", (kw_hash,))
+        row_kw = cur.fetchone()
+        if row_kw:
+            kw_id = row_kw['id']
+        else:
+            try:
+                cur = conn.execute(
+                    "INSERT INTO keyword_set(kw_hash, keywords_json) VALUES (?,?)",
+                    (kw_hash, kw_json)
+                )
+                kw_id = cur.lastrowid
+                conn.execute(
+                    "INSERT INTO keyword_set_fts(rowid, keywords_json) VALUES (?,?)",
+                    (kw_id, kw_json)
+                )
+            except sqlite3.IntegrityError:
+                kw_id = conn.execute(
+                    "SELECT id FROM keyword_set WHERE kw_hash=?", (kw_hash,)
+                ).fetchone()[0]
+
         cur = conn.execute(sql, [row[k] for k in base_fields])
         rowid = cur.lastrowid
         if rowid is None:
@@ -64,6 +91,10 @@ def insert_rsp(row: Dict[str, Any]) -> int:
         conn.execute(
             "INSERT INTO rsp_fts(rowid, text, summary, keywords) VALUES (?,?,?,?)",
             (rowid, row['text'], row['summary'], row['keywords'])
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO rsp_keyword_xref(rsp_id, keyword_set_id) VALUES (?, ?)",
+            (rowid, kw_id)
         )
         # index meta
         for idx in flatten_meta(row['hash'], meta_pairs, json.loads(row.get('children', '[]') or '[]')):
@@ -85,15 +116,24 @@ def search_rsps(query: str,
                 tags: Optional[List[str]] = None,
                 limit: int = 10,
                 domain: Optional[str] = None,
-                topic: Optional[str] = None) -> List[Dict[str, Any]]:
-    """Search RSPs using FTS with optional tag and axis filters."""
+                topic: Optional[str] = None,
+                keywords: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Search RSPs using FTS with optional tag, keyword and axis filters."""
     sql = (
         "SELECT rsp.id, rsp.conv_id, rsp.turn, rsp.role, rsp.date, rsp.text, "
         "rsp.summary, rsp.keywords, rsp.tags, rsp.tokens, rsp.domain, rsp.topic "
         "FROM rsp_fts JOIN rsp ON rsp_fts.rowid = rsp.id "
-        "WHERE rsp_fts MATCH ?"
     )
+    if keywords:
+        sql += (
+            "JOIN rsp_keyword_xref rx ON rx.rsp_id = rsp.id "
+            "JOIN keyword_set_fts ON keyword_set_fts.rowid = rx.keyword_set_id "
+        )
+    sql += "WHERE rsp_fts MATCH ?"
     params: List[Any] = [query]
+    if keywords:
+        sql += " AND (keyword_set_fts MATCH ?)"
+        params.append(keywords)
     if tags:
         tag_clause = ' AND '.join(["json_extract(tags, '$') LIKE ?" for _ in tags])
         sql += f" AND {tag_clause}"
