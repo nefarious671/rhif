@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.env
+.env
+.venv/
+venv/
+env/
+*.sqlite
+*.db
+
+# VS Code
+.vscode/
+
+# Flask
+instance/
+*.log
+
+# Project-specific
+rhif.sqlite
+workspace/
