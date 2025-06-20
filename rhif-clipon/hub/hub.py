@@ -146,6 +146,27 @@ if __name__ == '__main__':
         execute("CREATE INDEX IF NOT EXISTS rsp_topic_idx ON rsp(topic)")
         execute("CREATE INDEX IF NOT EXISTS idx_keywords_json ON rsp(json_extract(keywords, '$'))")
         execute("CREATE INDEX IF NOT EXISTS idx_tags_json ON rsp(json_extract(tags, '$'))")
+        # Phase-3 keyword_set tables
+        execute(
+            """CREATE TABLE IF NOT EXISTS keyword_set(
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              kw_hash TEXT UNIQUE,
+              keywords_json TEXT
+            )"""
+        )
+        execute(
+            "CREATE VIRTUAL TABLE IF NOT EXISTS keyword_set_fts USING fts5(keywords_json)"
+        )
+        execute(
+            """CREATE TABLE IF NOT EXISTS rsp_keyword_xref(
+              rsp_id INT,
+              keyword_set_id INT,
+              PRIMARY KEY(rsp_id, keyword_set_id)
+            )"""
+        )
+        execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_keyword_set_hash ON keyword_set(kw_hash)"
+        )
         # TODO: normalise tags into rsp_tag table with insert trigger
     port = app.config['HUB_PORT']
     app.run(host='127.0.0.1', port=port)
