@@ -42,6 +42,7 @@ with app.app_context():
     )""")
     execute("CREATE INDEX rsp_domain_idx ON rsp(domain)")
     execute("CREATE INDEX rsp_topic_idx ON rsp(topic)")
+    execute("CREATE INDEX idx_keywords_json ON rsp(json_extract(keywords, '$'))")
     execute("CREATE TABLE keyword_set (id INTEGER PRIMARY KEY AUTOINCREMENT, kw_hash TEXT UNIQUE, keywords_json TEXT)")
     execute("CREATE VIRTUAL TABLE keyword_set_fts USING fts5(keywords_json)")
     execute("CREATE TABLE rsp_keyword_xref(rsp_id INT, keyword_set_id INT, PRIMARY KEY(rsp_id, keyword_set_id))")
@@ -52,6 +53,20 @@ def test_insert_and_search():
         res = search_rsps('hello', [], 10)
         assert len(res) == 1
         assert res[0]['id'] == rowid
+        stored_kw = execute("SELECT keywords FROM rsp WHERE id=?", rowid)[0]['keywords']
+        assert stored_kw is None
+
+def test_keyword_canonicalisation_and_search():
+    from rhif_utils import canonical_keyword_list
+    with app.app_context():
+        rowid = insert_rsp({'conv_id':'2','turn':1,'role':'user','date':'2024-01-01',
+                             'text':'foo','summary':'bar','keywords':'["A","b","a"]',
+                             'tags':'[]','tokens':1,'domain':'test','topic':'unit'})
+        kw_row = execute("SELECT keyword_set_id FROM rsp_keyword_xref WHERE rsp_id=?", rowid)[0]
+        kw_json = execute("SELECT keywords_json FROM keyword_set WHERE id=?", kw_row['keyword_set_id'])[0]['keywords_json']
+        assert kw_json == canonical_json(canonical_keyword_list(['A','b','a']))
+        res = search_rsps('foo', [], 10, keywords='a')
+        assert any(r['id'] == rowid for r in res)
 
 def test_keyword_canonicalisation_and_search():
     from rhif_utils import canonical_keyword_list
