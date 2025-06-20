@@ -7,9 +7,17 @@ from rhif_utils import canonical_json, rsp_hash, flatten_meta
 
 from flask import current_app
 
+_MEM_CONN: sqlite3.Connection | None = None
+
 
 def get_db() -> sqlite3.Connection:
     db_path = Path(current_app.config.get('DB_PATH', './rhif.sqlite'))
+    if str(db_path) == ':memory:':
+        global _MEM_CONN
+        if _MEM_CONN is None:
+            _MEM_CONN = sqlite3.connect(':memory:')
+            _MEM_CONN.row_factory = sqlite3.Row
+        return _MEM_CONN
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
@@ -74,7 +82,8 @@ def search_rsps(query: str,
                 topic: Optional[str] = None) -> List[Dict[str, Any]]:
     """Search RSPs using FTS with optional tag and axis filters."""
     sql = (
-        "SELECT id, conv_id, turn, role, date, text, summary, keywords, tags, tokens, domain, topic "
+        "SELECT rsp.id, rsp.conv_id, rsp.turn, rsp.role, rsp.date, rsp.text, "
+        "rsp.summary, rsp.keywords, rsp.tags, rsp.tokens, rsp.domain, rsp.topic "
         "FROM rsp_fts JOIN rsp ON rsp_fts.rowid = rsp.id "
         "WHERE rsp_fts MATCH ?"
     )
