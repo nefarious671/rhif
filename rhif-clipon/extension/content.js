@@ -35,7 +35,7 @@ window.rhifContent = { getLatestChatTurns, insertAtCursor };
   document.body.appendChild(btn);
   makeDraggable(btn, { grid: 20, handle: btn, storageKey: 'rhif-btn' });
   btn.addEventListener('click', () => {
-    panel.style.display = panel.style.display === 'none' || !panel.style.display ? 'block' : 'none';
+    panel.classList.toggle('rhif-hidden');
   });
 
   document.addEventListener('keydown', e => {
