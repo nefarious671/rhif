@@ -30,7 +30,7 @@ class RHIFApp:
         self.master = master
         master.withdraw()  # hide main window
 
-        master.option_add("*Font", "Segoe UI 11")
+        master.option_add("*Font", ("Segoe UI", 11))
 
         self.panel = None
         self.tray_icon = None
@@ -78,13 +78,23 @@ class RHIFApp:
                 self.panel.lift()
 
     def create_tray_image(self):
-        if Image is None:
+        if Image is None or ImageDraw is None:
             return None
         img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
         draw.ellipse((0, 0, 64, 64), fill=(43, 108, 176, 255))
-        w, h = draw.textsize("R")
-        draw.text(((64 - w) / 2, (64 - h) / 2), "R", fill="white")
+        # Use a default font
+        try:
+            from PIL import ImageFont
+            font = ImageFont.load_default()
+        except Exception:
+            font = None
+        if font is not None and hasattr(draw, "textbbox"):
+            bbox = draw.textbbox((0, 0), "R", font=font)
+            w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        else:
+            w, h = 20, 20  # fallback
+        draw.text(((64 - w) / 2, (64 - h) / 2), "R", fill="white", font=font)
         return img
 
     def create_tray_icon(self):
