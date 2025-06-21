@@ -165,6 +165,19 @@ export function makeDraggable(el, opts = {}) {
       el.style.right = 'unset';
     }
   }
+  function clampToViewport() {
+    const maxLeft = window.innerWidth - el.offsetWidth;
+    const maxTop = window.innerHeight - el.offsetHeight;
+    let left = parseInt(el.style.left || '0', 10);
+    let top = parseInt(el.style.top || '0', 10);
+    if (isNaN(left)) left = 0;
+    if (isNaN(top)) top = 0;
+    left = Math.min(Math.max(left, 0), maxLeft);
+    top = Math.min(Math.max(top, 0), maxTop);
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
+  }
+  clampToViewport();
   let offsetX = 0, offsetY = 0, isDragging = false;
 
   handle.addEventListener('mousedown', (e) => {
@@ -190,6 +203,7 @@ export function makeDraggable(el, opts = {}) {
       el.style.left = `${snappedLeft}px`;
       el.style.top = `${snappedTop}px`;
     }
+    clampToViewport();
     if (storageKey) {
       localStorage.setItem(`${storageKey}-left`, el.style.left);
       localStorage.setItem(`${storageKey}-top`, el.style.top);

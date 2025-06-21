@@ -43,7 +43,6 @@
   cursor: default;
   display: flex;
   flex-direction: column;
-  position: relative;
 }
 
 #rhif-panel:hover {
