@@ -1,0 +1,7 @@
+{
+  "name": "rhif",
+  "version": "1.0.0",
+  "scripts": {
+    "migrate": "python rhif-clipon/tools/migrate_v2.py ./rhif.sqlite"
+  }
+}

@@ -109,3 +109,14 @@ searches using the `utils.js` helper to call the hub.
 3. Load `extension/` as an unpacked extension in Chrome/Edge.
 4. Import previous conversations using `tools/ingest_export.py` if desired.
 
+### Database migration
+
+After pulling version 2 run the migration script once to upgrade existing
+archives:
+
+```bash
+npm run migrate  # or: python rhif-clipon/tools/migrate_v2.py ./rhif.sqlite
+```
+
+This adds lookup tables for repeated values and rebuilds the FTS indices.
+
