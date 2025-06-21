@@ -19,7 +19,12 @@ import hashlib
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
-from rhif_utils import canonical_json, rsp_hash, flatten_meta, canonical_keyword_list
+from .rhif_utils import (
+    canonical_json,
+    rsp_hash,
+    flatten_meta,
+    canonical_keyword_list,
+)
 
 from flask import current_app
 

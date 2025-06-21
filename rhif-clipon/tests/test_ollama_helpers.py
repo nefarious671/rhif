@@ -1,8 +1,8 @@
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'hub'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from ollama_helpers import _extract_json
+from hub.ollama_helpers import _extract_json
 
 
 def test_extract_json_direct():

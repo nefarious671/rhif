@@ -23,7 +23,7 @@ Create a `.env` to override defaults if needed.
 ## Running
 
 ```bash
-python hub/hub.py
+python -m hub.hub
 ```
 
 Load `extension/` as an unpacked extension in Chrome/Edge.
