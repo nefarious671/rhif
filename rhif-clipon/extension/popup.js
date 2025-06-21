@@ -38,15 +38,15 @@ document.getElementById('run-search').addEventListener('click', async () => {
 });
 
 document.getElementById('save-turn').addEventListener('click', async () => {
-  const [userText, assistantText] = await chrome.tabs.query({ active: true, currentWindow: true }).then(tabs => {
-    return chrome.scripting.executeScript({
-      target: { tabId: tabs[0].id },
-      func: () => {
-        const msgs = document.querySelectorAll('.text-base');
-        const latest = Array.from(msgs).slice(-2);
-        return latest.map(n => n.innerText);
-      }
-    });
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tabId = tabs[0].id;
+  const [userText, assistantText] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: () => {
+      const msgs = document.querySelectorAll('.text-base');
+      const latest = Array.from(msgs).slice(-2);
+      return latest.map(n => n.innerText);
+    }
   }).then(res => res[0].result);
   await hubFetch('/ingest', {
     method: 'POST',
@@ -62,16 +62,16 @@ document.getElementById('save-turn').addEventListener('click', async () => {
 });
 
 document.getElementById('save-code').addEventListener('click', async () => {
-  const [assistantText] = await chrome.tabs.query({ active: true, currentWindow: true }).then(tabs => {
-    return chrome.scripting.executeScript({
-      target: { tabId: tabs[0].id },
-      func: () => {
-        const msgs = document.querySelectorAll('.text-base');
-        const latest = msgs[msgs.length - 1];
-        return latest.innerText;
-      }
-    });
-  }).then(res => [res[0].result]);
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tabId = tabs[0].id;
+  const assistantText = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: () => {
+      const msgs = document.querySelectorAll('.text-base');
+      const latest = msgs[msgs.length - 1];
+      return latest.innerText;
+    }
+  }).then(res => res[0].result);
   const res = await hubFetch('/savecode', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
