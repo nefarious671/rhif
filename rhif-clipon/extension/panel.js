@@ -4,6 +4,7 @@ export function initPanel() {
   const panel = document.getElementById('rhif-panel');
   const searchInput = document.getElementById('rhif-search');
   const results = document.getElementById('rhif-results');
+  const preview = document.getElementById('rhif-preview');
   const themeBtn = document.getElementById('rhif-theme-toggle');
   let dark = false;
   makeDraggable(panel);
@@ -13,6 +14,11 @@ export function initPanel() {
     panel.classList.toggle('rhif-dark', dark);
   });
 
+  function showPreview(text) {
+    preview.textContent = text;
+    preview.classList.remove('rhif-hidden');
+  }
+
   async function runSearch() {
     const q = searchInput.value.trim();
     if (!q) return;
@@ -20,20 +26,26 @@ export function initPanel() {
       headers: { Accept: 'application/json' }
     });
     results.innerHTML = '';
+    preview.classList.add('rhif-hidden');
     rows.forEach(r => {
       const li = document.createElement('li');
       li.className = 'rhif-item';
-      const meta = document.createElement('div');
-      meta.textContent = `${r.topic || ''} ${r.emotion ? ' - ' + r.emotion : ''}`;
-      const btn = document.createElement('button');
-      btn.textContent = 'Insert';
-      btn.addEventListener('click', () => {
-        navigator.clipboard.writeText(r.text).catch(() => {});
-        window.postMessage({ type: 'RHIF_PASTE', payload: r.text }, '*');
+
+      const link = document.createElement('a');
+      link.textContent = (r.summary || '').slice(0, 60);
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        showPreview(r.text);
       });
-      li.textContent = (r.summary || '').slice(0, 60) + ' ';
-      li.appendChild(meta);
-      li.appendChild(btn);
+
+      const copy = document.createElement('button');
+      copy.textContent = '📋';
+      copy.addEventListener('click', () => {
+        navigator.clipboard.writeText(r.text).catch(() => {});
+      });
+
+      li.appendChild(link);
+      li.appendChild(copy);
       results.appendChild(li);
     });
   }
@@ -42,7 +54,18 @@ export function initPanel() {
     if (e.key === 'Enter') runSearch();
   });
 }
-export function makeDraggable(el) {
+export function makeDraggable(el, opts = {}) {
+  const grid = opts.grid || 1;
+  const storageKey = opts.storageKey;
+  if (storageKey) {
+    const left = localStorage.getItem(`${storageKey}-left`);
+    const top = localStorage.getItem(`${storageKey}-top`);
+    if (left !== null && top !== null) {
+      el.style.left = left;
+      el.style.top = top;
+      el.style.right = 'unset';
+    }
+  }
   let offsetX = 0, offsetY = 0, isDragging = false;
 
   el.addEventListener('mousedown', (e) => {
@@ -61,7 +84,18 @@ export function makeDraggable(el) {
   });
 
   document.addEventListener('mouseup', () => {
+    if (!isDragging) return;
     isDragging = false;
+    if (grid > 1) {
+      const snappedLeft = Math.round(el.offsetLeft / grid) * grid;
+      const snappedTop = Math.round(el.offsetTop / grid) * grid;
+      el.style.left = `${snappedLeft}px`;
+      el.style.top = `${snappedTop}px`;
+    }
+    if (storageKey) {
+      localStorage.setItem(`${storageKey}-left`, el.style.left);
+      localStorage.setItem(`${storageKey}-top`, el.style.top);
+    }
     el.style.cursor = 'move';
   });
 }

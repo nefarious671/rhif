@@ -33,7 +33,7 @@ window.rhifContent = { getLatestChatTurns, insertAtCursor };
   btn.id = 'rhif-toggle-btn';
   btn.textContent = 'R';
   document.body.appendChild(btn);
-  makeDraggable(btn);
+  makeDraggable(btn, { grid: 16, storageKey: 'rhif-btn' });
   btn.addEventListener('click', () => {
     panel.style.display = panel.style.display === 'none' || !panel.style.display ? 'block' : 'none';
   });
