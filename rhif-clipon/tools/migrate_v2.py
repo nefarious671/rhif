@@ -76,7 +76,7 @@ def migrate(db_path: Path) -> None:
             (d, t, c, e, r[0]),
         )
 
-    cur.execute("DELETE FROM rsp_fts")
+    # rebuild FTS table from scratch
     for rid, text, summary in tqdm(
         cur.execute("SELECT id, text, summary FROM rsp"), desc="fts rebuild"
     ):
