@@ -25,6 +25,7 @@ from code_utils import extract_markdown_blocks, save_blocks
 load_dotenv()
 
 app = Flask(__name__, template_folder='templates')
+app.url_map.strict_slashes = False  # allow optional trailing slashes
 CORS(app, origins=['chrome-extension://*'])
 
 app.config.update(
