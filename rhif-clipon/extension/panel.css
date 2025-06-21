@@ -14,6 +14,7 @@
   align-items: center;
   justify-content: center;
   cursor: move;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
   user-select: none;
 }
 
@@ -27,7 +28,7 @@
   color: #000;
   border: 1px solid #ccc;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  box-shadow: inset 0 0 4px rgba(0,0,0,0.2), 0 0 8px rgba(0,0,0,0.3);
   padding: 10px;
   overflow: auto;
   z-index: 10000;
@@ -38,6 +39,7 @@
 #rhif-panel.rhif-dark {
   background: #333;
   color: #eee;
+  box-shadow: inset 0 0 4px rgba(255,255,255,0.1), 0 0 8px rgba(0,0,0,0.6);
 }
 #rhif-panel-header {
   display: flex;
@@ -48,14 +50,30 @@
   list-style: none;
   padding: 0;
   margin: 0;
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  overflow-x: auto;
 }
 .rhif-item {
-  margin-bottom: 8px;
-  border-bottom: 1px solid #ddd;
-  padding-bottom: 4px;
+  padding: 4px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 140px;
+}
+.rhif-item a {
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
 }
 .rhif-item button {
   margin-top: 4px;
+}
+#rhif-panel.rhif-dark .rhif-item {
+  border-color: #555;
 }
 /* Make the entire panel draggable */
 #rhif-panel {
@@ -65,4 +83,21 @@
 /* Optional: Add visual cue to just drag header if preferred */
 #rhif-panel-header {
   cursor: grab;
+}
+
+.rhif-hidden {
+  display: none;
+}
+
+#rhif-preview {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  max-height: 150px;
+  overflow: auto;
+}
+
+#rhif-panel.rhif-dark #rhif-preview {
+  border-color: #555;
 }
