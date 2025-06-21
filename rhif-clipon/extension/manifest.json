@@ -15,7 +15,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["panel.html", "panel.css", "panel.js"],
+      "resources": ["panel.html", "panel.css", "panel.js", "utils.js"],
       "matches": ["<all_urls>"]
     }
   ]
