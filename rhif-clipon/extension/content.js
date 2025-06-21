@@ -27,7 +27,7 @@ window.rhifContent = { getLatestChatTurns, insertAtCursor };
   document.head.appendChild(link);
 
   const { initPanel, makeDraggable } = await import(chrome.runtime.getURL('panel.js'));
-  initPanel();
+  await initPanel();
 
   const btn = document.createElement('div');
   btn.id = 'rhif-toggle-btn';

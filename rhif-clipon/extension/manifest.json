@@ -15,7 +15,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["panel.html", "panel.css", "panel.js", "utils.js"],
+      "resources": ["panel.html", "panel.css", "panel.js", "utils.js", "lib/marked.esm.js"],
       "matches": ["<all_urls>"]
     }
   ]
