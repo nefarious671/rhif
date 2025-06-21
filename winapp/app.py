@@ -235,7 +235,10 @@ class RHIFApp:
         size = 64
         image = Image.new("RGBA", (size, size), (43, 108, 176, 255))
         draw = ImageDraw.Draw(image)
-        w, h = draw.textsize("R")
+        # Calculate text size using textbbox
+        bbox = draw.textbbox((0, 0), "R")
+        w = bbox[2] - bbox[0]
+        h = bbox[3] - bbox[1]
         draw.text(((size - w) / 2, (size - h) / 2), "R", fill="white")
         menu = pystray.Menu(
             pystray.MenuItem("Restore", self.show_app, default=True),
