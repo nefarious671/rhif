@@ -8,8 +8,9 @@ Tables:
   - ``rsp_index``: flattened metadata for fast filtering.
   - ``keyword_set``/``keyword_set_fts`` and ``rsp_keyword_xref``: deduplicated
     keyword lists with FTS search.
+  - ``dim_value``: lookup table for dimension text values.
 
-Important indices are created on ``rsp.domain`` and ``rsp.topic``.
+Important indices are created on the FK columns.
 """
 
 import json
@@ -29,6 +30,14 @@ def ensure_schema() -> None:
     """Create required tables and indices if they do not already exist."""
     with get_db() as conn:
         conn.execute(
+            """CREATE TABLE IF NOT EXISTS dim_value (
+              id        INTEGER PRIMARY KEY,
+              dimension TEXT NOT NULL,
+              value     TEXT NOT NULL,
+              UNIQUE(dimension,value)
+            )"""
+        )
+        conn.execute(
             """CREATE TABLE IF NOT EXISTS rsp (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
               hash TEXT UNIQUE,
@@ -43,15 +52,15 @@ def ensure_schema() -> None:
               tokens INTEGER,
               meta TEXT,
               children TEXT,
-              domain TEXT,
-              topic TEXT,
-              conversation_type TEXT,
-              emotion TEXT,
-              novelty INTEGER
+              novelty INTEGER,
+              domain_id INT,
+              topic_id INT,
+              convtype_id INT,
+              emotion_id INT
             )"""
         )
         conn.execute(
-            "CREATE VIRTUAL TABLE IF NOT EXISTS rsp_fts USING fts5(text, summary, keywords, content='rsp', content_rowid='id')"
+            "CREATE VIRTUAL TABLE IF NOT EXISTS rsp_fts USING fts5(text, summary, tokenize='trigram', content='rsp', content_rowid='id')"
         )
         conn.execute(
             """CREATE TABLE IF NOT EXISTS rsp_index (
@@ -63,8 +72,10 @@ def ensure_schema() -> None:
               UNIQUE(hash, dimension, value)
             )"""
         )
-        conn.execute("CREATE INDEX IF NOT EXISTS rsp_domain_idx ON rsp(domain)")
-        conn.execute("CREATE INDEX IF NOT EXISTS rsp_topic_idx ON rsp(topic)")
+        conn.execute("CREATE INDEX IF NOT EXISTS rsp_domain_idx ON rsp(domain_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS rsp_topic_idx ON rsp(topic_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS rsp_convtype_idx ON rsp(convtype_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS rsp_emotion_idx ON rsp(emotion_id)")
         conn.execute(
             """CREATE TABLE IF NOT EXISTS keyword_set(
               id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -73,7 +84,7 @@ def ensure_schema() -> None:
             )"""
         )
         conn.execute(
-            "CREATE VIRTUAL TABLE IF NOT EXISTS keyword_set_fts USING fts5(keywords_json)"
+            "CREATE VIRTUAL TABLE IF NOT EXISTS keyword_set_fts USING fts5(keywords_json, tokenize='trigram')"
         )
         conn.execute(
             """CREATE TABLE IF NOT EXISTS rsp_keyword_xref(
@@ -110,18 +121,35 @@ def execute(sql: str, *params) -> List[sqlite3.Row]:
         return cur.fetchall()
 
 
+def _dim_id(cur: sqlite3.Cursor, dim: str, val: str | None) -> Optional[int]:
+    """Return ID for *val* in ``dim_value`` inserting if needed."""
+    if not val:
+        return None
+    cur.execute(
+        "INSERT OR IGNORE INTO dim_value(dimension,value) VALUES (?,?)",
+        (dim, val),
+    )
+    return cur.execute(
+        "SELECT id FROM dim_value WHERE dimension=? AND value=?",
+        (dim, val),
+    ).fetchone()[0]
+
+
 def insert_rsp(row: Dict[str, Any]) -> int:
     """Insert a response packet and create all related index entries."""
     base_fields = [
         'conv_id', 'turn', 'role', 'date', 'text',
         'summary', 'keywords', 'tags', 'tokens',
-        'meta', 'children', 'domain', 'topic',
-        'conversation_type', 'emotion', 'novelty', 'hash'
+        'meta', 'children', 'domain_id', 'topic_id',
+        'convtype_id', 'emotion_id', 'novelty', 'hash'
     ]
-    row = {k: row.get(k) for k in base_fields}
+    row = {k: row.get(k) for k in base_fields + ['domain','topic','conversation_type','emotion']}
 
     if row.get('date'):
         row['date'] = str(row['date']).strip('"\'')[:10]
+
+    if row.get('novelty') is not None:
+        row['novelty'] = round(float(row['novelty']), 2)
 
     kw_list = canonical_keyword_list(json.loads(row.get('keywords') or '[]'))
     kw_json = canonical_json(kw_list)
@@ -137,7 +165,9 @@ def insert_rsp(row: Dict[str, Any]) -> int:
         meta_pairs.extend(json.loads(row['meta']))
     row['meta'] = json.dumps(meta_pairs)
 
-    row['hash'] = row.get('hash') or rsp_hash(row.get('text', ''), meta_pairs, json.loads(row.get('children', '[]') or '[]'))
+    row['hash'] = row.get('hash') or rsp_hash(
+        row.get('text', ''), meta_pairs, json.loads(row.get('children', '[]') or '[]')
+    )
 
     placeholders = ','.join('?' for _ in base_fields)
     sql = f"""
@@ -145,6 +175,12 @@ def insert_rsp(row: Dict[str, Any]) -> int:
     VALUES ({', '.join(['?'] * len(base_fields))})
     """
     with get_db() as conn:
+        cur = conn.cursor()
+        row['domain_id'] = _dim_id(cur, 'domain', row.pop('domain', None))
+        row['topic_id'] = _dim_id(cur, 'topic', row.pop('topic', None))
+        row['convtype_id'] = _dim_id(cur, 'conversation_type', row.pop('conversation_type', None))
+        row['emotion_id'] = _dim_id(cur, 'emotion', row.pop('emotion', None))
+
         # keyword set handling
         cur = conn.execute("SELECT id FROM keyword_set WHERE kw_hash=?", (kw_hash,))
         row_kw = cur.fetchone()
@@ -171,8 +207,8 @@ def insert_rsp(row: Dict[str, Any]) -> int:
         if rowid is None:
             raise RuntimeError("Failed to insert RSP row: lastrowid is None")
         conn.execute(
-            "INSERT INTO rsp_fts(rowid, text, summary, keywords) VALUES (?,?,?,?)",
-            (rowid, row['text'], row['summary'], '')
+            "INSERT INTO rsp_fts(rowid, text, summary) VALUES (?,?,?)",
+            (rowid, row['text'], row['summary'])
         )
         conn.execute(
             "INSERT OR IGNORE INTO rsp_keyword_xref(rsp_id, keyword_set_id) VALUES (?, ?)",
@@ -195,68 +231,78 @@ def insert_rsp(row: Dict[str, Any]) -> int:
     return rowid
 
 
-def search_rsps(query: str,
-                tags: Optional[List[str]] = None,
-                limit: int = 10,
-                domain: Optional[str] = None,
-                topic: Optional[str] = None,
-                keywords: Optional[str] = None,
-                conv_id: Optional[str] = None,
-                emotion: Optional[str] = None,
-                start: Optional[str] = None,
-                end: Optional[str] = None,
-                slow: bool = False) -> List[Dict[str, Any]]:
-    """Search stored packets using FTS and keyword/axis filters."""
+def search_rsps(
+    query: str,
+    tags: Optional[List[str]] = None,
+    limit: int = 10,
+    domain: Optional[str] = None,
+    topic: Optional[str] = None,
+    keywords: Optional[str] = None,
+    conv_id: Optional[str] = None,
+    emotion: Optional[str] = None,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+    slow: bool = False,
+) -> List[Dict[str, Any]]:
+    """Search stored packets using FTS5 MATCH with optional filters."""
     if not query.strip():
         return []
-    base = (
+
+    sql = (
         "SELECT rsp.id, rsp.conv_id, rsp.turn, rsp.role, rsp.date, rsp.text, "
-        "rsp.summary, rsp.keywords, rsp.tags, rsp.tokens, rsp.domain, rsp.topic, "
+        "rsp.summary, rsp.keywords, rsp.tags, rsp.tokens, "
+        "d1.value AS domain, d2.value AS topic, "
+        "d3.value AS conversation_type, d4.value AS emotion, rsp.novelty "
+        "FROM (SELECT rowid, bm25(rsp_fts) AS rank FROM rsp_fts WHERE rsp_fts MATCH ? ORDER BY rank) f "
+        "JOIN rsp ON rsp.id = f.rowid "
     )
-    if slow:
-        sql = base + "0 AS rank FROM rsp "
-    else:
-        sql = base + "bm25(rsp_fts) AS rank FROM rsp_fts JOIN rsp ON rsp_fts.rowid = rsp.id "
+
+    params: List[Any] = [query]
     if keywords:
         sql += (
             "JOIN rsp_keyword_xref rx ON rx.rsp_id = rsp.id "
             "JOIN keyword_set_fts ON keyword_set_fts.rowid = rx.keyword_set_id "
         )
-    if slow:
-        sql += "WHERE rsp.text LIKE ?"
-        params: List[Any] = [f"%{query}%"]
-    else:
-        sql += "WHERE rsp_fts MATCH ?"
-        params: List[Any] = [query]
+
+    sql += (
+        "LEFT JOIN dim_value d1 ON d1.id = rsp.domain_id "
+        "LEFT JOIN dim_value d2 ON d2.id = rsp.topic_id "
+        "LEFT JOIN dim_value d3 ON d3.id = rsp.convtype_id "
+        "LEFT JOIN dim_value d4 ON d4.id = rsp.emotion_id "
+        "WHERE 1=1 "
+    )
+
     if keywords:
-        sql += " AND (keyword_set_fts MATCH ?)"
+        sql += "AND keyword_set_fts MATCH ? "
         params.append(keywords)
     if tags:
-        placeholders = ' AND '.join([
-            "EXISTS (SELECT 1 FROM json_each(rsp.tags) WHERE value = ?)" for _ in tags
-        ])
-        sql += f" AND {placeholders}"
+        placeholders = " AND ".join(
+            ["EXISTS (SELECT 1 FROM json_each(rsp.tags) WHERE value = ?)"] * len(tags)
+        )
+        sql += f"AND {placeholders} "
         params.extend(tags)
     if domain:
-        sql += " AND domain = ?"
+        sql += "AND d1.value = ? "
         params.append(domain)
     if topic:
-        sql += " AND topic = ?"
+        sql += "AND d2.value = ? "
         params.append(topic)
     if conv_id:
-        sql += " AND conv_id = ?"
+        sql += "AND rsp.conv_id = ? "
         params.append(conv_id)
     if emotion:
-        sql += " AND emotion = ?"
+        sql += "AND d4.value = ? "
         params.append(emotion)
     if start:
-        sql += " AND date >= ?"
+        sql += "AND rsp.date >= ? "
         params.append(start)
     if end:
-        sql += " AND date <= ?"
+        sql += "AND rsp.date <= ? "
         params.append(end)
-    sql += " ORDER BY rank, rsp.id DESC LIMIT ?"
+
+    sql += "ORDER BY f.rank, rsp.id DESC LIMIT ?"
     params.append(limit)
+
     rows = execute(sql, *params)
     return [dict(r) for r in rows]
 

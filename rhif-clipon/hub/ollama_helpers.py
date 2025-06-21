@@ -128,12 +128,13 @@ def _summarise_once(
     else:
         keywords = [k.lower() for k in keywords if isinstance(k, str)]
 
+    novelty_val = float(data.get('novelty', 0))
     meta = {
         'domain': data.get('domain', '').strip().lower(),
         'topic': data.get('topic', '').strip().lower(),
         'conversation_type': data.get('conversation_type', '').strip().lower(),
         'emotion': data.get('emotion', '').strip().lower(),
-        'novelty': float(data.get('novelty', 0))
+        'novelty': round(novelty_val, 2)
     }
 
     return summary, keywords, meta
