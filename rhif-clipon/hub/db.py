@@ -120,6 +120,9 @@ def insert_rsp(row: Dict[str, Any]) -> int:
     ]
     row = {k: row.get(k) for k in base_fields}
 
+    if row.get('date'):
+        row['date'] = str(row['date']).strip('"\'')[:10]
+
     kw_list = canonical_keyword_list(json.loads(row.get('keywords') or '[]'))
     kw_json = canonical_json(kw_list)
     kw_hash = hashlib.sha256(kw_json.encode()).hexdigest()
