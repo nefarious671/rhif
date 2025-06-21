@@ -4,7 +4,6 @@ export function initPanel() {
   const panel = document.getElementById('rhif-panel');
   const header = document.getElementById('rhif-panel-header');
   const searchInput = document.getElementById('rhif-search');
-  const searchBtn = document.getElementById('rhif-search-btn');
   const filterBtn = document.getElementById('rhif-filter-toggle');
   const filterPanel = document.getElementById('rhif-filter-panel');
   const results = document.getElementById('rhif-results');
@@ -19,10 +18,11 @@ export function initPanel() {
   let rows = [];
   let current = -1;
 
-  makeDraggable(panel, { grid: 20, handle: header, storageKey: 'rhif-panel' });
+  makeDraggable(panel, { grid: 20, handle: header, storageKey: 'rhif-panel-pos' });
+  makeResizable(panel, { storageKey: 'rhif-panel-size' });
 
   filterBtn.addEventListener('click', () => {
-    filterPanel.classList.toggle('rhif-hidden');
+    filterPanel.classList.toggle('rhif-open');
   });
 
   themeBtn.addEventListener('click', () => {
@@ -48,6 +48,7 @@ export function initPanel() {
     const row = rows[idx];
     current = idx;
     preview.innerHTML = mdToHtml(row.text || '');
+    preview.scrollTop = 0;
     preview.classList.remove('rhif-hidden');
     controls.classList.remove('rhif-hidden');
     updateNav();
@@ -123,12 +124,13 @@ export function initPanel() {
     });
   }
 
-  searchBtn.addEventListener('click', runSearch);
   searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); });
 
   // vertical resize
   let resizeStart = 0;
   let startHeight = 0;
+  const storedHeight = localStorage.getItem('rhif-results-height');
+  if (storedHeight) results.style.height = storedHeight;
   separator.addEventListener('mousedown', e => {
     resizeStart = e.clientY;
     startHeight = results.offsetHeight;
@@ -146,6 +148,7 @@ export function initPanel() {
     window.removeEventListener('mousemove', onResize);
     window.removeEventListener('mouseup', stopResize);
     document.body.style.userSelect = '';
+    localStorage.setItem('rhif-results-height', results.style.height);
   }
 }
 
@@ -192,5 +195,58 @@ export function makeDraggable(el, opts = {}) {
       localStorage.setItem(`${storageKey}-top`, el.style.top);
     }
     handle.style.cursor = 'move';
+  });
+}
+
+export function makeResizable(el, opts = {}) {
+  const storageKey = opts.storageKey;
+  const right = document.createElement('div');
+  const bottom = document.createElement('div');
+  right.className = 'rhif-resize-right';
+  bottom.className = 'rhif-resize-bottom';
+  el.appendChild(right);
+  el.appendChild(bottom);
+
+  if (storageKey) {
+    const w = localStorage.getItem(`${storageKey}-width`);
+    const h = localStorage.getItem(`${storageKey}-height`);
+    if (w) el.style.width = w;
+    if (h) el.style.height = h;
+  }
+
+  let startX = 0, startY = 0, startW = 0, startH = 0;
+
+  right.addEventListener('mousedown', e => {
+    startX = e.clientX;
+    startW = el.offsetWidth;
+    document.body.style.userSelect = 'none';
+    function move(ev) {
+      el.style.width = `${startW + (ev.clientX - startX)}px`;
+    }
+    function up() {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      document.body.style.userSelect = '';
+      if (storageKey) localStorage.setItem(`${storageKey}-width`, el.style.width);
+    }
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+  });
+
+  bottom.addEventListener('mousedown', e => {
+    startY = e.clientY;
+    startH = el.offsetHeight;
+    document.body.style.userSelect = 'none';
+    function move(ev) {
+      el.style.height = `${startH + (ev.clientY - startY)}px`;
+    }
+    function up() {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      document.body.style.userSelect = '';
+      if (storageKey) localStorage.setItem(`${storageKey}-height`, el.style.height);
+    }
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
   });
 }
