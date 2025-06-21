@@ -1,58 +1,60 @@
 import tkinter as tk
 from tkinter import ttk
 from tkhtmlview import HTMLLabel
+import markdown
 import requests
+import threading
+
+try:
+    import pystray
+    from PIL import Image, ImageDraw
+except Exception:  # pragma: no cover - pystray may fail without GUI
+    pystray = None
+    Image = ImageDraw = None
 
 HUB_BASE = 'http://127.0.0.1:8765'
 
 
 def md_to_html(md: str) -> str:
-    """Convert a subset of Markdown to HTML."""
-    html = (
-        md.replace('&', '&amp;')
-        .replace('<', '&lt;')
-        .replace('>', '&gt;')
-    )
-    html = html.replace('```\n', '<pre><code>')
-    html = html.replace('```', '</code></pre>')
-    html = html.replace('**', '<strong>', 1).replace('**', '</strong>', 1)
-    html = html.replace('*', '<em>', 1).replace('*', '</em>', 1)
-    html = html.replace('`', '<code>', 1).replace('`', '</code>', 1)
-    html = html.replace('\n', '<br>')
-    return html
+    """Convert Markdown to HTML using the ``markdown`` package."""
+    return markdown.markdown(md or '', extensions=['fenced_code'])
 
 
-class RhifApp:
+class RHIFApp:
     def __init__(self, master: tk.Tk):
         self.master = master
         master.withdraw()  # hide main window
 
+        master.option_add("*Font", "Segoe UI 11")
+
         self.panel = None
+        self.tray_icon = None
         self.toggle = tk.Toplevel(master)
         self.toggle.overrideredirect(True)
-        self.toggle.geometry('50x50+20+20')
-        self.toggle.attributes('-topmost', True)
+        self.toggle.geometry("40x40+20+20")
+        self.toggle.attributes("-topmost", True)
+        self.toggle.attributes("-alpha", 0.9)
 
         self.toggle_canvas = tk.Canvas(
             self.toggle,
-            width=50,
-            height=50,
+            width=40,
+            height=40,
             highlightthickness=0,
             bg=self.toggle.cget("bg"),
         )
         self.toggle_canvas.pack(fill="both", expand=True)
-        self.toggle_canvas.create_oval(2, 2, 48, 48, fill="#2b6cb0", outline="")
+        self.toggle_canvas.create_oval(2, 2, 38, 38, fill="#2b6cb0", outline="")
         self.toggle_canvas.create_text(
-            25,
-            25,
+            20,
+            20,
             text="R",
             fill="white",
-            font=("TkDefaultFont", 16, "bold"),
+            font=("Segoe UI", 14, "bold"),
         )
         self.toggle_canvas.bind("<ButtonPress-1>", self.start_drag)
         self.toggle_canvas.bind("<B1-Motion>", self.do_drag)
         self.toggle_canvas.bind("<ButtonRelease-1>", self.end_drag)
-        self.toggle_canvas.bind("<Button-3>", lambda e: self.master.destroy())
+        self.toggle_canvas.bind("<Button-3>", self.minimize_to_tray)
 
     def toggle_panel(self):
         if self.panel and self.panel.winfo_viewable():
@@ -76,26 +78,75 @@ class RhifApp:
         if abs(event.x - self._drag_offset[0]) < 5 and abs(event.y - self._drag_offset[1]) < 5:
             self.toggle_panel()
 
+    def create_tray_image(self):
+        if Image is None:
+            return None
+        img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+        draw.ellipse((0, 0, 64, 64), fill=(43, 108, 176, 255))
+        w, h = draw.textsize("R")
+        draw.text(((64 - w) / 2, (64 - h) / 2), "R", fill="white")
+        return img
+
+    def minimize_to_tray(self, _=None):
+        if pystray is None:
+            self.toggle.withdraw()
+            if self.panel:
+                self.panel.withdraw()
+            return
+        self.toggle.withdraw()
+        if self.panel:
+            self.panel.withdraw()
+
+        image = self.create_tray_image()
+        menu = pystray.Menu(
+            pystray.MenuItem(
+                "Restore", self.restore_from_tray, default=True
+            ),
+            pystray.MenuItem("Exit", self.exit_app),
+        )
+        self.tray_icon = pystray.Icon("RHIF", image, "RHIF", menu)
+
+        threading.Thread(target=self.tray_icon.run, daemon=True).start()
+
+    def restore_from_tray(self, icon=None, item=None):
+        if icon:
+            icon.stop()
+        self.tray_icon = None
+        self.master.deiconify()
+        self.toggle.deiconify()
+        if self.panel:
+            self.panel.deiconify()
+        self.toggle.lift()
+
+    def exit_app(self, icon=None, item=None):
+        if icon:
+            icon.stop()
+        self.master.destroy()
+
     def build_panel(self):
         self.panel = tk.Toplevel(self.master)
-        self.panel.title('RHIF')
-        self.panel.geometry('600x400')
-        self.panel.attributes('-topmost', True)
+        self.panel.title("RHIF")
+        self.panel.geometry("800x500")
+        self.panel.attributes("-topmost", True)
+        self.panel.protocol("WM_DELETE_WINDOW", self.minimize_to_tray)
 
+        # search bar
         header = ttk.Frame(self.panel)
-        header.pack(side='top', fill='x')
+        header.pack(side="top", fill="x")
 
         self.search_var = tk.StringVar()
-        search = ttk.Entry(header, textvariable=self.search_var)
-        search.pack(side='left', fill='x', expand=True, padx=4, pady=4)
-        search.bind('<Return>', lambda e: self.run_search())
+        self.search_entry = ttk.Entry(header, textvariable=self.search_var)
+        self.search_entry.pack(side="top", fill="x", expand=True, padx=6, pady=6)
+        self.search_entry.bind("<Return>", lambda e: self.run_search())
 
-        ttk.Button(header, text='Filters', command=self.toggle_filters).pack(side='right')
+        # placeholder text
+        self.search_entry.insert(0, "Search topics…")
+        self.search_entry.configure(foreground="gray")
+        self.search_entry.bind("<FocusIn>", self._clear_placeholder)
+        self.search_entry.bind("<FocusOut>", self._add_placeholder)
 
-        self.filter_frame = ttk.Frame(self.panel)
-        self.filter_frame.pack(side='top', fill='x')
-        self.filter_frame.pack_forget()
-
+        # variables for filters
         self.domain_var = tk.StringVar()
         self.topic_var = tk.StringVar()
         self.emotion_var = tk.StringVar()
@@ -104,49 +155,65 @@ class RhifApp:
         self.end_var = tk.StringVar()
         self.slow_var = tk.BooleanVar()
 
-        for text, var in [
-            ('Domain', self.domain_var),
-            ('Topic', self.topic_var),
-            ('Emotion', self.emotion_var),
-            ('Conversation', self.conv_var),
+        # main paned layout
+        self.paned = ttk.PanedWindow(self.panel, orient=tk.HORIZONTAL)
+        self.paned.pack(fill="both", expand=True)
+
+        left = ttk.Frame(self.paned)
+        right = ttk.Frame(self.paned)
+        self.paned.add(left, weight=1)
+        self.paned.add(right, weight=3)
+
+        # list of results with scrollbar
+        list_frame = ttk.Frame(left)
+        list_frame.pack(fill="both", expand=True, padx=5, pady=5)
+        self.results = tk.Listbox(list_frame)
+        vs = ttk.Scrollbar(list_frame, orient="vertical", command=self.results.yview)
+        self.results.configure(yscrollcommand=vs.set)
+        self.results.pack(side="left", fill="both", expand=True)
+        vs.pack(side="right", fill="y")
+        self.results.bind("<<ListboxSelect>>", self.on_select)
+
+        self.preview = HTMLLabel(right, html="<i>Nothing selected</i>")
+        self.preview.pack(fill="both", expand=True, padx=5, pady=5)
+
+        # bottom filter+controls panel
+        bottom = ttk.Frame(self.panel)
+        bottom.pack(side="bottom", fill="x", padx=5, pady=5)
+
+        for lbl, var in [
+            ("Domain", self.domain_var),
+            ("Topic", self.topic_var),
+            ("Emotion", self.emotion_var),
+            ("Conversation", self.conv_var),
+            ("Start", self.start_var),
+            ("End", self.end_var),
         ]:
-            ttk.Label(self.filter_frame, text=text).pack(side='left')
-            ttk.Entry(self.filter_frame, textvariable=var, width=8).pack(side='left')
-        ttk.Label(self.filter_frame, text='Start').pack(side='left')
-        ttk.Entry(self.filter_frame, textvariable=self.start_var, width=10).pack(side='left')
-        ttk.Label(self.filter_frame, text='End').pack(side='left')
-        ttk.Entry(self.filter_frame, textvariable=self.end_var, width=10).pack(side='left')
-        ttk.Checkbutton(self.filter_frame, text='Slow', variable=self.slow_var).pack(side='left')
+            ttk.Label(bottom, text=lbl).pack(side="left")
+            ttk.Entry(bottom, textvariable=var, width=10).pack(side="left", padx=2)
+        ttk.Checkbutton(bottom, text="Slow", variable=self.slow_var).pack(side="left", padx=4)
 
-        main = ttk.Frame(self.panel)
-        main.pack(fill='both', expand=True)
-
-        self.results = tk.Listbox(main)
-        self.results.pack(side='left', fill='y')
-        self.results.bind('<<ListboxSelect>>', self.on_select)
-
-        self.preview = HTMLLabel(main, html='<i>Nothing selected</i>')
-        self.preview.pack(side='left', fill='both', expand=True)
-
-        controls = ttk.Frame(self.panel)
-        controls.pack(side='bottom', fill='x')
-        self.prev_btn = ttk.Button(controls, text='Prev', command=lambda: self.move_idx(-1))
-        self.prev_btn.pack(side='left')
-        self.next_btn = ttk.Button(controls, text='Next', command=lambda: self.move_idx(1))
-        self.next_btn.pack(side='left')
-        self.copy_btn = ttk.Button(controls, text='Copy', command=self.copy_current)
-        self.copy_btn.pack(side='right')
+        self.prev_btn = ttk.Button(bottom, text="Prev", command=lambda: self.move_idx(-1))
+        self.prev_btn.pack(side="left", padx=5)
+        self.next_btn = ttk.Button(bottom, text="Next", command=lambda: self.move_idx(1))
+        self.next_btn.pack(side="left")
+        self.copy_btn = ttk.Button(bottom, text="Copy", command=self.copy_current)
+        self.copy_btn.pack(side="right")
 
         self.conv_cache = {}
         self.rows = []
         self.conv_rows = []
         self.conv_idx = -1
 
-    def toggle_filters(self):
-        if self.filter_frame.winfo_manager():
-            self.filter_frame.pack_forget()
-        else:
-            self.filter_frame.pack(side='top', fill='x')
+    def _clear_placeholder(self, _=None):
+        if self.search_entry.get() == "Search topics…":
+            self.search_entry.delete(0, tk.END)
+            self.search_entry.configure(foreground="black")
+
+    def _add_placeholder(self, _=None):
+        if not self.search_entry.get():
+            self.search_entry.insert(0, "Search topics…")
+            self.search_entry.configure(foreground="gray")
 
     def run_search(self):
         q = self.search_var.get().strip()
@@ -241,9 +308,10 @@ class RhifApp:
 
 def main():
     root = tk.Tk()
-    app = RhifApp(root)
+    app = RHIFApp(root)
     root.mainloop()
 
 
 if __name__ == '__main__':
     main()
+
