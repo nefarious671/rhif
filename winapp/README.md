@@ -17,4 +17,4 @@ This directory contains a simple standalone desktop application that mirrors the
    python app.py
    ```
 
-The app opens a small floating "R" button. Clicking it toggles the main panel where you can search, preview and copy responses just like the extension.
+The app opens a small floating "R" button. Clicking it toggles the main panel where you can search, preview and copy responses just like the extension. Right-clicking the button exits the app.
