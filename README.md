@@ -54,6 +54,9 @@ KEYWORD_COUNT=8
 
 All POST endpoints accept/return JSON.
 
+Date filters (`start`/`end` query params) expect ISO strings in `YYYY-MM-DD` format.
+`/ingest` normalises supplied dates to that format, removing quotes or time components.
+
 ### Database schema
 
 `db.py` manages the following tables:
