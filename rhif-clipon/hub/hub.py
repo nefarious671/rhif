@@ -16,6 +16,7 @@ import sqlite3
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
+from werkzeug.exceptions import BadRequest
 
 from db import execute, insert_rsp, search_rsps, fetch_conversation
 from ollama_helpers import summarise_and_keywords
