@@ -81,3 +81,15 @@ def test_search_date_range():
         assert len(res) == 1
         assert res[0]['text'] == 'latest'
 
+def test_insert_strips_date_quotes():
+    with app.app_context():
+        rowid = insert_rsp({'conv_id':'4','turn':1,'role':'user',
+                            'date':'"2024-02-02"',
+                            'text':'quoted','summary':'','keywords':'[]',
+                            'tags':'[]','tokens':1,
+                            'domain':'test','topic':'quotes'})
+        stored = execute("SELECT date FROM rsp WHERE id=?", rowid)[0]['date']
+        assert stored == '2024-02-02'
+        res = search_rsps('quoted', [], 10, start='2024-02-01', end='2024-02-03')
+        assert len(res) == 1
+
