@@ -42,7 +42,7 @@ export function initPanel() {
     if (e.key === 'Enter') runSearch();
   });
 }
-function makeDraggable(el) {
+export function makeDraggable(el) {
   let offsetX = 0, offsetY = 0, isDragging = false;
 
   el.addEventListener('mousedown', (e) => {
