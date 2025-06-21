@@ -30,11 +30,28 @@ class RhifApp:
         self.panel = None
         self.toggle = tk.Toplevel(master)
         self.toggle.overrideredirect(True)
-        self.toggle.geometry('40x40+20+20')
+        self.toggle.geometry('50x50+20+20')
         self.toggle.attributes('-topmost', True)
-        ttk.Button(self.toggle, text='R', command=self.toggle_panel).pack(
-            expand=True, fill='both'
+
+        self.toggle_canvas = tk.Canvas(
+            self.toggle,
+            width=50,
+            height=50,
+            highlightthickness=0,
+            bg=self.toggle.cget("bg"),
         )
+        self.toggle_canvas.pack(fill="both", expand=True)
+        self.toggle_canvas.create_oval(2, 2, 48, 48, fill="#2b6cb0", outline="")
+        self.toggle_canvas.create_text(
+            25,
+            25,
+            text="R",
+            fill="white",
+            font=("TkDefaultFont", 16, "bold"),
+        )
+        self.toggle_canvas.bind("<ButtonPress-1>", self.start_drag)
+        self.toggle_canvas.bind("<B1-Motion>", self.do_drag)
+        self.toggle_canvas.bind("<ButtonRelease-1>", self.end_drag)
 
     def toggle_panel(self):
         if self.panel and self.panel.winfo_viewable():
@@ -44,6 +61,18 @@ class RhifApp:
                 self.build_panel()
             self.panel.deiconify()
             self.panel.lift()
+
+    def start_drag(self, event):
+        self._drag_offset = (event.x, event.y)
+
+    def do_drag(self, event):
+        x = self.toggle.winfo_x() + event.x - self._drag_offset[0]
+        y = self.toggle.winfo_y() + event.y - self._drag_offset[1]
+        self.toggle.geometry(f"+{x}+{y}")
+
+    def end_drag(self, event):
+        if abs(event.x - self._drag_offset[0]) < 5 and abs(event.y - self._drag_offset[1]) < 5:
+            self.toggle_panel()
 
     def build_panel(self):
         self.panel = tk.Toplevel(self.master)
@@ -98,7 +127,7 @@ class RhifApp:
         self.preview.pack(side='left', fill='both', expand=True)
 
         controls = ttk.Frame(self.panel)
-        controls.pack(fill='x')
+        controls.pack(side='bottom', fill='x')
         self.prev_btn = ttk.Button(controls, text='Prev', command=lambda: self.move_idx(-1))
         self.prev_btn.pack(side='left')
         self.next_btn = ttk.Button(controls, text='Next', command=lambda: self.move_idx(1))
@@ -112,7 +141,7 @@ class RhifApp:
         self.conv_idx = -1
 
     def toggle_filters(self):
-        if self.filter_frame.winfo_viewable():
+        if self.filter_frame.winfo_manager():
             self.filter_frame.pack_forget()
         else:
             self.filter_frame.pack(side='top', fill='x')
@@ -143,6 +172,7 @@ class RhifApp:
         except Exception as exc:
             self.results.delete(0, tk.END)
             self.results.insert(tk.END, f'Error: {exc}')
+            self.rows = []
             return
 
         self.results.delete(0, tk.END)
@@ -188,9 +218,12 @@ class RhifApp:
             self.render_entry(new_idx)
 
     def on_select(self, event):
-        if not self.results.curselection():
+        sel = self.results.curselection()
+        if not sel:
             return
-        idx = self.results.curselection()[0]
+        idx = sel[0]
+        if idx >= len(self.rows):
+            return
         self.show_preview(idx)
 
     def copy_current(self):
