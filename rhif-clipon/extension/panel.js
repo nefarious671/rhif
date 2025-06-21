@@ -40,7 +40,14 @@ export async function initPanel() {
   themeBtn.addEventListener('click', () => {
     dark = !dark;
     panel.classList.toggle('rhif-dark', dark);
+    localStorage.setItem('rhif-dark-mode', dark ? '1' : '0');
   });
+
+  const darkPref = localStorage.getItem('rhif-dark-mode');
+  if (darkPref === '1') {
+    dark = true;
+    panel.classList.add('rhif-dark');
+  }
 
   function mdToHtml(md) {
     if (markedParser) {
