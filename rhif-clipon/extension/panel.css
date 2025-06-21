@@ -1,0 +1,55 @@
+#rhif-toggle-btn {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  background: #4caf50;
+  color: #fff;
+  border-radius: 50%;
+  z-index: 10000;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+}
+#rhif-panel {
+  position: fixed;
+  top: 50px;
+  right: 10px;
+  width: 320px;
+  max-height: 400px;
+  background: #fff;
+  color: #000;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  padding: 10px;
+  overflow: auto;
+  z-index: 10000;
+  display: none;
+}
+#rhif-panel.rhif-dark {
+  background: #333;
+  color: #eee;
+}
+#rhif-panel-header {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+#rhif-results {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.rhif-item {
+  margin-bottom: 8px;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 4px;
+}
+.rhif-item button {
+  margin-top: 4px;
+}
