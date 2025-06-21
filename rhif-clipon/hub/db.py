@@ -308,9 +308,19 @@ def search_rsps(
 
 
 def fetch_conversation(conv_id: str) -> List[Dict[str, Any]]:
-    """Return all packets for a conversation ordered by turn."""
+    """Return all packets for ``conv_id`` ordered by turn with dimension values."""
     rows = execute(
-        "SELECT * FROM rsp WHERE conv_id = ? ORDER BY turn",
+        """
+        SELECT rsp.*, d1.value AS domain, d2.value AS topic,
+               d3.value AS conversation_type, d4.value AS emotion
+        FROM rsp
+        LEFT JOIN dim_value d1 ON d1.id = rsp.domain_id
+        LEFT JOIN dim_value d2 ON d2.id = rsp.topic_id
+        LEFT JOIN dim_value d3 ON d3.id = rsp.convtype_id
+        LEFT JOIN dim_value d4 ON d4.id = rsp.emotion_id
+        WHERE conv_id = ?
+        ORDER BY turn
+        """,
         conv_id,
     )
     return [dict(r) for r in rows]
