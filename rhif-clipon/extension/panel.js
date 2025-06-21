@@ -70,9 +70,13 @@ export function initPanel() {
     if (idx < 0 || idx >= rows.length) return;
     const row = rows[idx];
     current = idx;
-    await ensureConversation(row.conv_id);
-    const i = convRows.findIndex(r => r.id === row.id);
-    renderEntry(i === -1 ? 0 : i);
+    try {
+      await ensureConversation(row.conv_id);
+      const i = convRows.findIndex(r => r.id === row.id);
+      renderEntry(i === -1 ? 0 : i);
+    } catch (err) {
+      console.error('Preview failed:', err);
+    }
   }
 
   function updateNav() {
@@ -120,7 +124,12 @@ export function initPanel() {
     if (start) params.append('start', start);
     if (end) params.append('end', end);
     if (slow) params.append('slow', '1');
-    rows = await hubFetch(`/search?${params.toString()}`, { headers: { Accept: 'application/json' } });
+    try {
+      rows = await hubFetch(`/search?${params.toString()}`, { headers: { Accept: 'application/json' } });
+    } catch (err) {
+      console.error('Search failed:', err);
+      return;
+    }
     results.innerHTML = '';
     preview.classList.add('rhif-hidden');
     controls.classList.add('rhif-hidden');
