@@ -47,6 +47,8 @@ class RHIFApp:
         self.master.protocol("WM_DELETE_WINDOW", self.minimize_to_tray)
         self.filters_win = None
         self.create_tray_icon()
+        # show the main panel on startup rather than starting hidden
+        self.toggle_panel()
 
     def _load_settings(self):
         try:
@@ -135,6 +137,8 @@ class RHIFApp:
         self.filters_win = tk.Toplevel(self.panel)
         self.filters_win.title("Filters & Settings")
         self.filters_win.resizable(False, False)
+        self.filters_win.transient(self.panel)
+        self.filters_win.attributes("-topmost", self.always_on_top_var.get())
 
         row = 0
         ttk.Label(self.filters_win, text="Domain").grid(row=row, column=0, sticky="e")
@@ -154,10 +158,14 @@ class RHIFApp:
             row += 1
 
         ttk.Label(self.filters_win, text="Start").grid(row=row, column=0, sticky="e")
-        DateEntry(self.filters_win, textvariable=self.start_var, width=12).grid(row=row, column=1, pady=2)
+        start_entry = DateEntry(self.filters_win, textvariable=self.start_var, width=12, date_pattern="yyyy-mm-dd")
+        start_entry.grid(row=row, column=1, pady=2)
+        start_entry.delete(0, tk.END)
         row += 1
         ttk.Label(self.filters_win, text="End").grid(row=row, column=0, sticky="e")
-        DateEntry(self.filters_win, textvariable=self.end_var, width=12).grid(row=row, column=1, pady=2)
+        end_entry = DateEntry(self.filters_win, textvariable=self.end_var, width=12, date_pattern="yyyy-mm-dd")
+        end_entry.grid(row=row, column=1, pady=2)
+        end_entry.delete(0, tk.END)
         row += 1
 
         ttk.Checkbutton(self.filters_win, text="Slow", variable=self.slow_var).grid(row=row, column=0, columnspan=2)
@@ -175,6 +183,8 @@ class RHIFApp:
     def update_always_on_top(self):
         if self.panel:
             self.panel.attributes("-topmost", self.always_on_top_var.get())
+        if self.filters_win and self.filters_win.winfo_exists():
+            self.filters_win.attributes("-topmost", self.always_on_top_var.get())
         self._save_settings()
 
     def exit_app(self, icon=None, item=None):
@@ -187,7 +197,8 @@ class RHIFApp:
         self.panel = tk.Toplevel(self.master)
         self.panel.title("RHIF")
         self.panel.minsize(600, 400)
-        self.panel.geometry(self.settings.get("geometry", "800x500"))
+        # slightly taller default height so bottom buttons are visible
+        self.panel.geometry(self.settings.get("geometry", "800x600"))
         self.panel.attributes("-topmost", self.always_on_top_var.get())
         self.panel.protocol("WM_DELETE_WINDOW", self.minimize_to_tray)
 
