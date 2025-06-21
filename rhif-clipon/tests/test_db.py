@@ -68,15 +68,16 @@ def test_keyword_canonicalisation_and_search():
         res = search_rsps('foo', [], 10, keywords='a')
         assert any(r['id'] == rowid for r in res)
 
-def test_keyword_canonicalisation_and_search():
-    from rhif_utils import canonical_keyword_list
+
+def test_search_date_range():
     with app.app_context():
-        rowid = insert_rsp({'conv_id':'2','turn':1,'role':'user','date':'2024-01-01',
-                             'text':'foo','summary':'bar','keywords':'["A","b","a"]',
-                             'tags':'[]','tokens':1,'domain':'test','topic':'unit'})
-        kw_row = execute("SELECT keyword_set_id FROM rsp_keyword_xref WHERE rsp_id=?", rowid)[0]
-        kw_json = execute("SELECT keywords_json FROM keyword_set WHERE id=?", kw_row['keyword_set_id'])[0]['keywords_json']
-        assert kw_json == canonical_json(canonical_keyword_list(['A','b','a']))
-        res = search_rsps('foo', [], 10, keywords='a')
-        assert any(r['id'] == rowid for r in res)
+        insert_rsp({'conv_id':'3','turn':1,'role':'user','date':'2024-01-02',
+                    'text':'later','summary':'','keywords':'[]','tags':'[]','tokens':1,
+                    'domain':'test','topic':'date'})
+        insert_rsp({'conv_id':'3','turn':2,'role':'user','date':'2024-01-05',
+                    'text':'latest','summary':'','keywords':'[]','tags':'[]','tokens':1,
+                    'domain':'test','topic':'date'})
+        res = search_rsps('late*', [], 10, start='2024-01-03', end='2024-01-06')
+        assert len(res) == 1
+        assert res[0]['text'] == 'latest'
 
