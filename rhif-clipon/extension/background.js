@@ -3,6 +3,16 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  fetch(msg.url, msg.options).then(r => r.json()).then(sendResponse).catch(err => sendResponse({ error: err.toString() }));
+  fetch(msg.url, msg.options)
+    .then(async (r) => {
+      const ct = r.headers.get('Content-Type') || '';
+      if (!ct.includes('application/json')) {
+        const text = await r.text();
+        throw new Error(`Non-JSON response: ${text.slice(0, 200)}`);
+      }
+      return r.json();
+    })
+    .then(sendResponse)
+    .catch((err) => sendResponse({ error: err.toString() }));
   return true;
 });
