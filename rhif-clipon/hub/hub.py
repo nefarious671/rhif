@@ -91,8 +91,14 @@ def search_route():
     limit = int(request.args.get('limit', 10))
     domain = request.args.get('domain')
     topic = request.args.get('topic')
+    conv_id = request.args.get('conv_id')
+    emotion = request.args.get('emotion')
+    start = request.args.get('start')
+    end = request.args.get('end')
+    slow = request.args.get('slow') == '1'
     tag_list = [t.strip() for t in tags.split(',') if t.strip()]
-    rows = search_rsps(query, tag_list, limit, domain, topic)
+    rows = search_rsps(query, tag_list, limit, domain, topic,
+                       None, conv_id, emotion, start, end, slow)
     if request.headers.get('Accept') == 'application/json':
         return jsonify(rows)
     return render_template('search.html', rows=rows)

@@ -2,61 +2,157 @@ import { hubFetch } from './utils.js';
 
 export function initPanel() {
   const panel = document.getElementById('rhif-panel');
+  const header = document.getElementById('rhif-panel-header');
   const searchInput = document.getElementById('rhif-search');
+  const searchBtn = document.getElementById('rhif-search-btn');
+  const filterBtn = document.getElementById('rhif-filter-toggle');
+  const filterPanel = document.getElementById('rhif-filter-panel');
   const results = document.getElementById('rhif-results');
+  const separator = document.getElementById('rhif-separator');
   const preview = document.getElementById('rhif-preview');
+  const controls = document.getElementById('rhif-preview-controls');
+  const copyBtn = document.getElementById('rhif-copy');
+  const prevBtn = document.getElementById('rhif-prev');
+  const nextBtn = document.getElementById('rhif-next');
   const themeBtn = document.getElementById('rhif-theme-toggle');
   let dark = false;
-  makeDraggable(panel);
+  let rows = [];
+  let current = -1;
+
+  makeDraggable(panel, { grid: 20, handle: header, storageKey: 'rhif-panel' });
+
+  filterBtn.addEventListener('click', () => {
+    filterPanel.classList.toggle('rhif-hidden');
+  });
 
   themeBtn.addEventListener('click', () => {
     dark = !dark;
     panel.classList.toggle('rhif-dark', dark);
   });
 
-  function showPreview(text) {
-    preview.textContent = text;
-    preview.classList.remove('rhif-hidden');
+  function mdToHtml(md) {
+    let html = md
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank">$1</a>');
+    return html.replace(/\n/g, '<br>');
   }
+
+  function showPreview(idx) {
+    if (idx < 0 || idx >= rows.length) return;
+    const row = rows[idx];
+    current = idx;
+    preview.innerHTML = mdToHtml(row.text || '');
+    preview.classList.remove('rhif-hidden');
+    controls.classList.remove('rhif-hidden');
+    updateNav();
+  }
+
+  function updateNav() {
+    const row = rows[current];
+    if (!row) return;
+    prevBtn.disabled = findSiblingIndex(current, -1) === -1;
+    nextBtn.disabled = findSiblingIndex(current, 1) === -1;
+  }
+
+  function findSiblingIndex(idx, dir) {
+    if (idx === -1) return -1;
+    const conv = rows[idx].conv_id;
+    let turn = rows[idx].turn;
+    let i = idx + dir;
+    while (i >= 0 && i < rows.length) {
+      if (rows[i].conv_id === conv && (dir > 0 ? rows[i].turn > turn : rows[i].turn < turn)) {
+        return i;
+      }
+      i += dir;
+    }
+    return -1;
+  }
+
+  prevBtn.addEventListener('click', () => {
+    const i = findSiblingIndex(current, -1);
+    if (i !== -1) showPreview(i);
+  });
+  nextBtn.addEventListener('click', () => {
+    const i = findSiblingIndex(current, 1);
+    if (i !== -1) showPreview(i);
+  });
+
+  copyBtn.addEventListener('click', () => {
+    if (current === -1) return;
+    const text = rows[current].text;
+    navigator.clipboard.writeText(text).catch(() => {});
+    window.postMessage({ type: 'RHIF_PASTE', payload: text }, '*');
+  });
 
   async function runSearch() {
     const q = searchInput.value.trim();
     if (!q) return;
-    const rows = await hubFetch(`/search?q=${encodeURIComponent(q)}&limit=10`, {
-      headers: { Accept: 'application/json' }
-    });
+    const params = new URLSearchParams({ q, limit: '20' });
+    const domain = document.getElementById('rhif-domain').value.trim();
+    const topic = document.getElementById('rhif-topic').value.trim();
+    const emotion = document.getElementById('rhif-emotion').value.trim();
+    const convId = document.getElementById('rhif-conv-id').value.trim();
+    const start = document.getElementById('rhif-date-start').value;
+    const end = document.getElementById('rhif-date-end').value;
+    const slow = document.getElementById('rhif-slow-search').checked;
+    if (domain) params.append('domain', domain);
+    if (topic) params.append('topic', topic);
+    if (emotion) params.append('emotion', emotion);
+    if (convId) params.append('conv_id', convId);
+    if (start) params.append('start', start);
+    if (end) params.append('end', end);
+    if (slow) params.append('slow', '1');
+    rows = await hubFetch(`/search?${params.toString()}`, { headers: { Accept: 'application/json' } });
     results.innerHTML = '';
     preview.classList.add('rhif-hidden');
-    rows.forEach(r => {
+    controls.classList.add('rhif-hidden');
+    rows.forEach((r, idx) => {
       const li = document.createElement('li');
-      li.className = 'rhif-item';
-
+      li.className = 'rhif-row';
       const link = document.createElement('a');
-      link.textContent = (r.summary || '').slice(0, 60);
-      link.addEventListener('click', e => {
-        e.preventDefault();
-        showPreview(r.text);
-      });
-
-      const copy = document.createElement('button');
-      copy.textContent = '📋';
-      copy.addEventListener('click', () => {
-        navigator.clipboard.writeText(r.text).catch(() => {});
-      });
-
+      link.textContent = (r.summary || r.text).slice(0, 60);
+      link.addEventListener('click', e => { e.preventDefault(); showPreview(idx); });
       li.appendChild(link);
-      li.appendChild(copy);
       results.appendChild(li);
     });
   }
 
-  searchInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') runSearch();
+  searchBtn.addEventListener('click', runSearch);
+  searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); });
+
+  // vertical resize
+  let resizeStart = 0;
+  let startHeight = 0;
+  separator.addEventListener('mousedown', e => {
+    resizeStart = e.clientY;
+    startHeight = results.offsetHeight;
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', onResize);
+    window.addEventListener('mouseup', stopResize);
   });
+
+  function onResize(e) {
+    const dy = e.clientY - resizeStart;
+    results.style.maxHeight = 'none';
+    results.style.height = `${startHeight + dy}px`;
+  }
+  function stopResize() {
+    window.removeEventListener('mousemove', onResize);
+    window.removeEventListener('mouseup', stopResize);
+    document.body.style.userSelect = '';
+  }
 }
+
 export function makeDraggable(el, opts = {}) {
   const grid = opts.grid || 1;
   const storageKey = opts.storageKey;
+  const handle = opts.handle || el;
   if (storageKey) {
     const left = localStorage.getItem(`${storageKey}-left`);
     const top = localStorage.getItem(`${storageKey}-top`);
@@ -68,19 +164,18 @@ export function makeDraggable(el, opts = {}) {
   }
   let offsetX = 0, offsetY = 0, isDragging = false;
 
-  el.addEventListener('mousedown', (e) => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return; // Don't drag when interacting with controls
+  handle.addEventListener('mousedown', (e) => {
     isDragging = true;
     offsetX = e.clientX - el.offsetLeft;
     offsetY = e.clientY - el.offsetTop;
-    el.style.cursor = 'grabbing';
+    handle.style.cursor = 'grabbing';
   });
 
   document.addEventListener('mousemove', (e) => {
     if (!isDragging) return;
     el.style.left = `${e.clientX - offsetX}px`;
     el.style.top = `${e.clientY - offsetY}px`;
-    el.style.right = 'unset'; // override fixed right anchor
+    el.style.right = 'unset';
   });
 
   document.addEventListener('mouseup', () => {
@@ -96,6 +191,6 @@ export function makeDraggable(el, opts = {}) {
       localStorage.setItem(`${storageKey}-left`, el.style.left);
       localStorage.setItem(`${storageKey}-top`, el.style.top);
     }
-    el.style.cursor = 'move';
+    handle.style.cursor = 'move';
   });
 }
