@@ -1,8 +1,8 @@
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'hub'))
-from db import execute, insert_rsp, search_rsps, ensure_schema
-from rhif_utils import canonical_json
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from hub.db import execute, insert_rsp, search_rsps, ensure_schema
+from hub.rhif_utils import canonical_json
 from flask import Flask
 
 

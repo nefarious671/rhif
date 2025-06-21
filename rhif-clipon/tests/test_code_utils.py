@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'hub'))
-from code_utils import extract_markdown_blocks
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from hub.code_utils import extract_markdown_blocks
 
 
 def test_extract_blocks():

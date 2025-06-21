@@ -18,9 +18,9 @@ from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 from werkzeug.exceptions import BadRequest
 
-from db import execute, insert_rsp, search_rsps, fetch_conversation
-from ollama_helpers import summarise_and_keywords
-from code_utils import extract_markdown_blocks, save_blocks
+from .db import execute, insert_rsp, search_rsps, fetch_conversation
+from .ollama_helpers import summarise_and_keywords
+from .code_utils import extract_markdown_blocks, save_blocks
 
 
 load_dotenv()
@@ -134,7 +134,7 @@ def health_route():
 
 
 if __name__ == '__main__':
-    from db import ensure_schema
+    from .db import ensure_schema
     with app.app_context():
         ensure_schema()
     port = app.config['HUB_PORT']

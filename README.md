@@ -105,7 +105,7 @@ searches using the `utils.js` helper to call the hub.
 ## Usage
 
 1. Install dependencies as described in `rhif-clipon/README.md`.
-2. Run the hub with `python hub/hub.py`.
+2. Run the hub with `python -m hub.hub`.
 3. Load `extension/` as an unpacked extension in Chrome/Edge.
 4. Import previous conversations using `tools/ingest_export.py` if desired.
 
