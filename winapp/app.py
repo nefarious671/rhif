@@ -59,8 +59,9 @@ class RhifApp:
         else:
             if not self.panel:
                 self.build_panel()
-            self.panel.deiconify()
-            self.panel.lift()
+            if self.panel:
+                self.panel.deiconify()
+                self.panel.lift()
 
     def start_drag(self, event):
         self._drag_offset = (event.x, event.y)
