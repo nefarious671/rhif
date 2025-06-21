@@ -17,8 +17,8 @@
 }
 #rhif-panel {
   position: fixed;
-  top: 50px;
-  right: 10px;
+  top: 100px;         /* Start slightly lower to give space from top */
+  left: 100px;        /* Use left instead of right for draggable behavior */
   width: 320px;
   max-height: 400px;
   background: #fff;
@@ -30,7 +30,9 @@
   overflow: auto;
   z-index: 10000;
   display: none;
+  cursor: move;       /* Show move cursor */
 }
+
 #rhif-panel.rhif-dark {
   background: #333;
   color: #eee;
@@ -52,4 +54,13 @@
 }
 .rhif-item button {
   margin-top: 4px;
+}
+/* Make the entire panel draggable */
+#rhif-panel {
+  cursor: move;
+}
+
+/* Optional: Add visual cue to just drag header if preferred */
+#rhif-panel-header {
+  cursor: grab;
 }

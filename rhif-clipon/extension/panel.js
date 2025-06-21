@@ -6,6 +6,7 @@ export function initPanel() {
   const results = document.getElementById('rhif-results');
   const themeBtn = document.getElementById('rhif-theme-toggle');
   let dark = false;
+  makeDraggable(panel);
 
   themeBtn.addEventListener('click', () => {
     dark = !dark;
@@ -39,5 +40,28 @@ export function initPanel() {
 
   searchInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') runSearch();
+  });
+}
+function makeDraggable(el) {
+  let offsetX = 0, offsetY = 0, isDragging = false;
+
+  el.addEventListener('mousedown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return; // Don't drag when interacting with controls
+    isDragging = true;
+    offsetX = e.clientX - el.offsetLeft;
+    offsetY = e.clientY - el.offsetTop;
+    el.style.cursor = 'grabbing';
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    el.style.left = `${e.clientX - offsetX}px`;
+    el.style.top = `${e.clientY - offsetY}px`;
+    el.style.right = 'unset'; // override fixed right anchor
+  });
+
+  document.addEventListener('mouseup', () => {
+    isDragging = false;
+    el.style.cursor = 'move';
   });
 }
