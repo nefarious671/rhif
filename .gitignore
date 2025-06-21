@@ -22,5 +22,5 @@ instance/
 rhif.sqlite
 workspace/
 
-# winapp app.py
+# winapp
 winapp/app_settings.json

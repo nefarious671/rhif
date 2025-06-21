@@ -81,7 +81,6 @@ def test_search_date_range():
         assert len(res) == 1
         assert res[0]['text'] == 'latest'
 
-
 def test_insert_strips_date_quotes():
     with app.app_context():
         rowid = insert_rsp({'conv_id':'4','turn':1,'role':'user',
