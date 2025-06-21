@@ -8,7 +8,7 @@
   "action": { "default_popup": "popup.html" },
   "content_scripts": [
     {
-      "matches": ["https://chat.openai.com/*"],
+      "matches": ["https://chatgpt.com/*"],
       "js": ["content.js"]
     }
   ]
