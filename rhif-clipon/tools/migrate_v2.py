@@ -36,31 +36,41 @@ CREATE TABLE IF NOT EXISTS dim_value (
   value     TEXT NOT NULL,
   UNIQUE(dimension,value)
 );
-ALTER TABLE rsp ADD COLUMN domain_id INT;
-ALTER TABLE rsp ADD COLUMN topic_id INT;
-ALTER TABLE rsp ADD COLUMN convtype_id INT;
-ALTER TABLE rsp ADD COLUMN emotion_id INT;
-DROP TABLE IF EXISTS rsp_fts;
-CREATE VIRTUAL TABLE rsp_fts USING fts5(
-  text,
-  summary,
-  tokenize='trigram',
-  content='rsp',
-  content_rowid='id'
-);
-DROP TABLE IF EXISTS keyword_set_fts;
-CREATE VIRTUAL TABLE keyword_set_fts USING fts5(keywords_json, tokenize='trigram');
-CREATE INDEX IF NOT EXISTS rsp_domain_idx ON rsp(domain_id);
-CREATE INDEX IF NOT EXISTS rsp_topic_idx ON rsp(topic_id);
-CREATE INDEX IF NOT EXISTS rsp_convtype_idx ON rsp(convtype_id);
-CREATE INDEX IF NOT EXISTS rsp_emotion_idx ON rsp(emotion_id);
 """
 
 
 def migrate(db_path: Path) -> None:
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
+
+    # basic table for dimension lookups
     cur.executescript(SCHEMA_SQL)
+
+    # add new FK columns if they are missing
+    cols = [r[1] for r in cur.execute("PRAGMA table_info(rsp)")]
+    for col in ("domain_id", "topic_id", "convtype_id", "emotion_id"):
+        if col not in cols:
+            cur.execute(f"ALTER TABLE rsp ADD COLUMN {col} INT")
+
+    # (re)create FTS tables and indices
+    cur.execute("DROP TABLE IF EXISTS rsp_fts")
+    cur.execute(
+        """CREATE VIRTUAL TABLE rsp_fts USING fts5(
+            text,
+            summary,
+            tokenize='trigram',
+            content='rsp',
+            content_rowid='id'
+        )"""
+    )
+    cur.execute("DROP TABLE IF EXISTS keyword_set_fts")
+    cur.execute(
+        "CREATE VIRTUAL TABLE keyword_set_fts USING fts5(keywords_json, tokenize='trigram')"
+    )
+    cur.execute("CREATE INDEX IF NOT EXISTS rsp_domain_idx ON rsp(domain_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS rsp_topic_idx ON rsp(topic_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS rsp_convtype_idx ON rsp(convtype_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS rsp_emotion_idx ON rsp(emotion_id)")
 
     rows = cur.execute(
         "SELECT id, domain, topic, conversation_type, emotion FROM rsp"
