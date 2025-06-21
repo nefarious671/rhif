@@ -256,3 +256,12 @@ def search_rsps(query: str,
     params.append(limit)
     rows = execute(sql, *params)
     return [dict(r) for r in rows]
+
+
+def fetch_conversation(conv_id: str) -> List[Dict[str, Any]]:
+    """Return all packets for a conversation ordered by turn."""
+    rows = execute(
+        "SELECT * FROM rsp WHERE conv_id = ? ORDER BY turn",
+        conv_id,
+    )
+    return [dict(r) for r in rows]

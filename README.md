@@ -48,6 +48,7 @@ KEYWORD_COUNT=8
 | `/summarise`  | POST  | Return summary, keywords and meta for provided text.            |
 | `/ingest`     | POST  | Store a conversation turn and its metadata.                     |
 | `/search`     | GET   | Full‑text search with optional tag/domain/topic filters.        |
+| `/conversation` | GET   | Retrieve all turns for a conversation by ID. |
 | `/savecode`   | POST  | Persist code blocks from markdown into the workspace directory. |
 | `/health`     | GET   | Liveness probe used by tests and the extension.                 |
 

@@ -3,6 +3,7 @@ import { hubFetch } from './utils.js';
 export function initPanel() {
   const panel = document.getElementById('rhif-panel');
   const header = document.getElementById('rhif-panel-header');
+  const moveHandle = document.getElementById('rhif-move-handle');
   const searchInput = document.getElementById('rhif-search');
   const filterBtn = document.getElementById('rhif-filter-toggle');
   const filterPanel = document.getElementById('rhif-filter-panel');
@@ -17,8 +18,11 @@ export function initPanel() {
   let dark = false;
   let rows = [];
   let current = -1;
+  let convCache = {};
+  let convRows = [];
+  let convIndex = -1;
 
-  makeDraggable(panel, { grid: 20, handle: header, storageKey: 'rhif-panel-pos' });
+  makeDraggable(panel, { grid: 20, handle: moveHandle, storageKey: 'rhif-panel-pos' });
   makeResizable(panel, { storageKey: 'rhif-panel-size' });
 
   filterBtn.addEventListener('click', () => {
@@ -43,10 +47,18 @@ export function initPanel() {
     return html.replace(/\n/g, '<br>');
   }
 
-  function showPreview(idx) {
-    if (idx < 0 || idx >= rows.length) return;
-    const row = rows[idx];
-    current = idx;
+  async function ensureConversation(convId) {
+    if (!convCache[convId]) {
+      convCache[convId] = await hubFetch(`/conversation?conv_id=${encodeURIComponent(convId)}`, { headers: { Accept: 'application/json' } });
+      convCache[convId].sort((a, b) => a.turn - b.turn);
+    }
+    convRows = convCache[convId];
+  }
+
+  function renderEntry(i) {
+    if (i < 0 || i >= convRows.length) return;
+    const row = convRows[i];
+    convIndex = i;
     preview.innerHTML = mdToHtml(row.text || '');
     preview.scrollTop = 0;
     preview.classList.remove('rhif-hidden');
@@ -54,39 +66,38 @@ export function initPanel() {
     updateNav();
   }
 
-  function updateNav() {
-    const row = rows[current];
-    if (!row) return;
-    prevBtn.disabled = findSiblingIndex(current, -1) === -1;
-    nextBtn.disabled = findSiblingIndex(current, 1) === -1;
+  async function showPreview(idx) {
+    if (idx < 0 || idx >= rows.length) return;
+    const row = rows[idx];
+    current = idx;
+    await ensureConversation(row.conv_id);
+    const i = convRows.findIndex(r => r.id === row.id);
+    renderEntry(i === -1 ? 0 : i);
   }
 
-  function findSiblingIndex(idx, dir) {
-    if (idx === -1) return -1;
-    const conv = rows[idx].conv_id;
-    let turn = rows[idx].turn;
-    let i = idx + dir;
-    while (i >= 0 && i < rows.length) {
-      if (rows[i].conv_id === conv && (dir > 0 ? rows[i].turn > turn : rows[i].turn < turn)) {
-        return i;
-      }
-      i += dir;
-    }
+  function updateNav() {
+    prevBtn.disabled = convIndex <= 0;
+    nextBtn.disabled = convIndex === -1 || convIndex >= convRows.length - 1;
+  }
+
+  function moveIndex(dir) {
+    const i = convIndex + dir;
+    if (i >= 0 && i < convRows.length) return i;
     return -1;
   }
 
   prevBtn.addEventListener('click', () => {
-    const i = findSiblingIndex(current, -1);
-    if (i !== -1) showPreview(i);
+    const i = moveIndex(-1);
+    if (i !== -1) renderEntry(i);
   });
   nextBtn.addEventListener('click', () => {
-    const i = findSiblingIndex(current, 1);
-    if (i !== -1) showPreview(i);
+    const i = moveIndex(1);
+    if (i !== -1) renderEntry(i);
   });
 
   copyBtn.addEventListener('click', () => {
-    if (current === -1) return;
-    const text = rows[current].text;
+    if (convIndex === -1) return;
+    const text = convRows[convIndex].text;
     navigator.clipboard.writeText(text).catch(() => {});
     window.postMessage({ type: 'RHIF_PASTE', payload: text }, '*');
   });
@@ -113,6 +124,9 @@ export function initPanel() {
     results.innerHTML = '';
     preview.classList.add('rhif-hidden');
     controls.classList.add('rhif-hidden');
+    convCache = {};
+    convRows = [];
+    convIndex = -1;
     rows.forEach((r, idx) => {
       const li = document.createElement('li');
       li.className = 'rhif-row';
@@ -126,29 +140,28 @@ export function initPanel() {
 
   searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); });
 
-  // vertical resize
+  // horizontal resize
   let resizeStart = 0;
-  let startHeight = 0;
-  const storedHeight = localStorage.getItem('rhif-results-height');
-  if (storedHeight) results.style.height = storedHeight;
+  let startWidth = 0;
+  const storedWidth = localStorage.getItem('rhif-results-width');
+  if (storedWidth) results.style.width = storedWidth;
   separator.addEventListener('mousedown', e => {
-    resizeStart = e.clientY;
-    startHeight = results.offsetHeight;
+    resizeStart = e.clientX;
+    startWidth = results.offsetWidth;
     document.body.style.userSelect = 'none';
     window.addEventListener('mousemove', onResize);
     window.addEventListener('mouseup', stopResize);
   });
 
   function onResize(e) {
-    const dy = e.clientY - resizeStart;
-    results.style.maxHeight = 'none';
-    results.style.height = `${startHeight + dy}px`;
+    const dx = e.clientX - resizeStart;
+    results.style.width = `${startWidth + dx}px`;
   }
   function stopResize() {
     window.removeEventListener('mousemove', onResize);
     window.removeEventListener('mouseup', stopResize);
     document.body.style.userSelect = '';
-    localStorage.setItem('rhif-results-height', results.style.height);
+    localStorage.setItem('rhif-results-width', results.style.width);
   }
 }
 
