@@ -1,8 +1,8 @@
-#rhif-toggle-btn { 
+#rhif-toggle-btn {
   position: fixed;
-  top: 80px;
-  left: 10px;
-  right: auto;
+  top: 10px;
+  right: 10px;
+  left: auto;
   width: 32px;
   height: 32px;
   background: #4caf50;

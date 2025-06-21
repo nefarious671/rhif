@@ -26,13 +26,14 @@ window.rhifContent = { getLatestChatTurns, insertAtCursor };
   link.href = chrome.runtime.getURL('panel.css');
   document.head.appendChild(link);
 
-  const { initPanel } = await import(chrome.runtime.getURL('panel.js'));
+  const { initPanel, makeDraggable } = await import(chrome.runtime.getURL('panel.js'));
   initPanel();
 
   const btn = document.createElement('div');
   btn.id = 'rhif-toggle-btn';
   btn.textContent = 'R';
   document.body.appendChild(btn);
+  makeDraggable(btn);
   btn.addEventListener('click', () => {
     panel.style.display = panel.style.display === 'none' || !panel.style.display ? 'block' : 'none';
   });
