@@ -1,6 +1,14 @@
 import { hubFetch } from './utils.js';
 
-export function initPanel() {
+let markedParser;
+export async function initPanel() {
+  if (!markedParser) {
+    try {
+      markedParser = (await import(chrome.runtime.getURL('lib/marked.esm.js'))).marked;
+    } catch {
+      markedParser = null;
+    }
+  }
   const panel = document.getElementById('rhif-panel');
   const header = document.getElementById('rhif-panel-header');
   const moveHandle = document.getElementById('rhif-move-handle');
@@ -35,6 +43,9 @@ export function initPanel() {
   });
 
   function mdToHtml(md) {
+    if (markedParser) {
+      return markedParser.parse(md);
+    }
     let html = md
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
