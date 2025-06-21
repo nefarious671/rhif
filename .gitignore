@@ -21,3 +21,6 @@ instance/
 # Project-specific
 rhif.sqlite
 workspace/
+
+# winapp app.py
+winapp/app_settings.json
