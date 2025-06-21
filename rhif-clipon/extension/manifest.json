@@ -8,7 +8,7 @@
   "action": { "default_title": "RHIF" },
   "content_scripts": [
     {
-      "matches": ["https://chat.openai.com/*"],
+      "matches": ["https://chatgpt.com/*"],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
