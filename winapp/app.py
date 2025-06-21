@@ -52,6 +52,7 @@ class RhifApp:
         self.toggle_canvas.bind("<ButtonPress-1>", self.start_drag)
         self.toggle_canvas.bind("<B1-Motion>", self.do_drag)
         self.toggle_canvas.bind("<ButtonRelease-1>", self.end_drag)
+        self.toggle_canvas.bind("<Button-3>", lambda e: self.master.destroy())
 
     def toggle_panel(self):
         if self.panel and self.panel.winfo_viewable():
@@ -167,7 +168,11 @@ class RhifApp:
         if self.slow_var.get():
             params['slow'] = '1'
         try:
-            r = requests.get(f'{HUB_BASE}/search', params=params)
+            r = requests.get(
+                f'{HUB_BASE}/search',
+                params=params,
+                headers={'Accept': 'application/json'}
+            )
             r.raise_for_status()
             self.rows = r.json()
         except Exception as exc:
