@@ -3,6 +3,7 @@
     <input type="text" id="rhif-search" placeholder="Search..." />
     <button id="rhif-theme-toggle">🌙</button>
     <button id="rhif-filter-toggle" title="Filters">⚙️</button>
+    <button id="rhif-move-handle" title="Move">✥</button>
   </div>
   <div id="rhif-filter-panel">
     <label>Date Range <input type="date" id="rhif-date-start"> -
@@ -13,12 +14,16 @@
     <label>Emotion <input type="text" id="rhif-emotion"></label>
     <label><input type="checkbox" id="rhif-slow-search"> Slow Search (Full Text)</label>
   </div>
-  <ul id="rhif-results"></ul>
-  <div id="rhif-separator"></div>
-  <div id="rhif-preview" class="rhif-hidden"></div>
-  <div id="rhif-preview-controls" class="rhif-hidden">
-    <button id="rhif-prev">⬅️ Previous</button>
-    <button id="rhif-next">Next ➡️</button>
-    <button id="rhif-copy" title="Recognize!">📋</button>
+  <div id="rhif-main">
+    <ul id="rhif-results"></ul>
+    <div id="rhif-separator"></div>
+    <div id="rhif-preview-area">
+      <div id="rhif-preview" class="rhif-hidden"></div>
+      <div id="rhif-preview-controls" class="rhif-hidden">
+        <button id="rhif-prev">⬅️ Previous</button>
+        <button id="rhif-next">Next ➡️</button>
+        <button id="rhif-copy" title="Recognize!">📋</button>
+      </div>
+    </div>
   </div>
 </div>

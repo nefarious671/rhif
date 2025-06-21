@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 
-from db import execute, insert_rsp, search_rsps
+from db import execute, insert_rsp, search_rsps, fetch_conversation
 from ollama_helpers import summarise_and_keywords
 from code_utils import extract_markdown_blocks, save_blocks
 
@@ -102,6 +102,16 @@ def search_route():
     if request.headers.get('Accept') == 'application/json':
         return jsonify(rows)
     return render_template('search.html', rows=rows)
+
+
+@app.route('/conversation', methods=['GET'])
+def conversation_route():
+    """Return all packets for a conversation."""
+    conv_id = request.args.get('conv_id')
+    if not conv_id:
+        raise BadRequest('conv_id required')
+    rows = fetch_conversation(conv_id)
+    return jsonify(rows)
 
 
 @app.route('/savecode', methods=['POST'])
