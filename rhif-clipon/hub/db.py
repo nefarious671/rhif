@@ -197,22 +197,34 @@ def search_rsps(query: str,
                 limit: int = 10,
                 domain: Optional[str] = None,
                 topic: Optional[str] = None,
-                keywords: Optional[str] = None) -> List[Dict[str, Any]]:
+                keywords: Optional[str] = None,
+                conv_id: Optional[str] = None,
+                emotion: Optional[str] = None,
+                start: Optional[str] = None,
+                end: Optional[str] = None,
+                slow: bool = False) -> List[Dict[str, Any]]:
     """Search stored packets using FTS and keyword/axis filters."""
     if not query.strip():
         return []
-    sql = (
+    base = (
         "SELECT rsp.id, rsp.conv_id, rsp.turn, rsp.role, rsp.date, rsp.text, "
         "rsp.summary, rsp.keywords, rsp.tags, rsp.tokens, rsp.domain, rsp.topic, "
-        "bm25(rsp_fts) AS rank FROM rsp_fts JOIN rsp ON rsp_fts.rowid = rsp.id "
     )
+    if slow:
+        sql = base + "0 AS rank FROM rsp "
+    else:
+        sql = base + "bm25(rsp_fts) AS rank FROM rsp_fts JOIN rsp ON rsp_fts.rowid = rsp.id "
     if keywords:
         sql += (
             "JOIN rsp_keyword_xref rx ON rx.rsp_id = rsp.id "
             "JOIN keyword_set_fts ON keyword_set_fts.rowid = rx.keyword_set_id "
         )
-    sql += "WHERE rsp_fts MATCH ?"
-    params: List[Any] = [query]
+    if slow:
+        sql += "WHERE rsp.text LIKE ?"
+        params: List[Any] = [f"%{query}%"]
+    else:
+        sql += "WHERE rsp_fts MATCH ?"
+        params: List[Any] = [query]
     if keywords:
         sql += " AND (keyword_set_fts MATCH ?)"
         params.append(keywords)
@@ -228,6 +240,18 @@ def search_rsps(query: str,
     if topic:
         sql += " AND topic = ?"
         params.append(topic)
+    if conv_id:
+        sql += " AND conv_id = ?"
+        params.append(conv_id)
+    if emotion:
+        sql += " AND emotion = ?"
+        params.append(emotion)
+    if start:
+        sql += " AND date >= ?"
+        params.append(start)
+    if end:
+        sql += " AND date <= ?"
+        params.append(end)
     sql += " ORDER BY rank, rsp.id DESC LIMIT ?"
     params.append(limit)
     rows = execute(sql, *params)

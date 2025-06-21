@@ -1,8 +1,25 @@
 <div id="rhif-panel" class="rhif-hidden">
   <div id="rhif-panel-header">
     <input type="text" id="rhif-search" placeholder="Search..." />
+    <button id="rhif-filter-toggle">Filters ⚙️</button>
+    <button id="rhif-search-btn">Search</button>
     <button id="rhif-theme-toggle">🌙</button>
   </div>
+  <div id="rhif-filter-panel" class="rhif-hidden">
+    <label>Date Range <input type="date" id="rhif-date-start"> -
+      <input type="date" id="rhif-date-end"></label>
+    <label>Conversation ID <input type="text" id="rhif-conv-id"></label>
+    <label>Domain <input type="text" id="rhif-domain"></label>
+    <label>Topic <input type="text" id="rhif-topic"></label>
+    <label>Emotion <input type="text" id="rhif-emotion"></label>
+    <label><input type="checkbox" id="rhif-slow-search"> Slow Search (Full Text)</label>
+  </div>
   <ul id="rhif-results"></ul>
+  <div id="rhif-separator"></div>
   <div id="rhif-preview" class="rhif-hidden"></div>
+  <div id="rhif-preview-controls" class="rhif-hidden">
+    <button id="rhif-prev">⬅️ Previous</button>
+    <button id="rhif-next">Next ➡️</button>
+    <button id="rhif-copy" title="Recognize!">📋</button>
+  </div>
 </div>
